@@ -1,0 +1,25 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
+android/captures/
+*.iml
+
+# iOS / macOS (پروژه فعلاً اندروید است)
+ios/Pods/
+macos/Pods/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.log

@@ -1,0 +1,112 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: 'stable'
+          cache: true
+
+      # فایل‌های پلتفرم (gradle wrapper، MainActivity و…) رو می‌سازه.
+      # flutter create فایل‌های موجود رو بازنویسی نمی‌کنه، پس AndroidManifest
+      # و build.gradle.kts خودمون دست‌نخورده می‌مونن.
+      - name: Create platform files
+        run: flutter create --org ir.cfu --project-name group24 --platforms android .
+
+      - name: Read version
+        id: ver
+        shell: bash
+        run: |
+          V=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          # نسخهٔ کوتاه بدون بیلد نامبر: 0.0.1 از 0.0.1+1
+          echo "short=${V%%+*}" >> "$GITHUB_OUTPUT"
+
+      # کلید امضای ثابت پروژه (base64 جفت‌کلید داخل سکرت ریپو)
+      - name: Decode signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.GROUP24_UPLOAD_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.GROUP24_KEYSTORE_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/group24-upload.jks
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEYSTORE_PASSWORD
+          keyAlias=group24-upload
+          storeFile=group24-upload.jks
+          EOF
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate app icons
+        run: dart run flutter_launcher_icons
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos || true
+
+      - name: Test
+        run: flutter test
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Rename APK
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             "build/app/outputs/flutter-apk/group24-v${{ steps.ver.outputs.short }}.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: group24-apk
+          path: build/app/outputs/flutter-apk/group24-v*.apk
+
+      # هر بیلد خودکار به‌صورت ریلیز گیت‌هاب آرشیو می‌شه
+      - name: Create Release
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="v${{ steps.ver.outputs.version }}"
+          TITLE="${{ steps.ver.outputs.short }}"
+          APK="build/app/outputs/flutter-apk/group24-v${{ steps.ver.outputs.short }}.apk"
+          PRERELEASE_FLAG=""
+          case "$TITLE" in *-*) PRERELEASE_FLAG="--prerelease";; esac
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — updating assets"
+            gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            echo "Creating release $TAG"
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TITLE" \
+              $PRERELEASE_FLAG \
+              --notes "برنامهٔ گروه ۲۴ — نسخه $TITLE
+          📱 فایل نصبی: group24-v${{ steps.ver.outputs.short }}.apk
+
+          این بیلد خودکار از آخرین کد شاخه main ساخته شده است." \
+              "$APK"
+          fi
