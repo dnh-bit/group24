@@ -59,7 +59,7 @@ class _SessionSheetState extends State<_SessionSheet> {
                   style: const TextStyle(fontFamily: kTitleFont, fontSize: 28, color: AppColors.saffron)),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
-                initialValue: _day,
+                value: _day,
                 decoration: const InputDecoration(labelText: 'روز', border: OutlineInputBorder()),
                 items: [
                   for (var d = 0; d < kDayNames.length; d++) DropdownMenuItem(value: d, child: Text(kDayNames[d])),

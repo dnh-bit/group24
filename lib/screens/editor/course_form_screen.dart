@@ -253,7 +253,7 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      initialValue: _kind,
+                      value: _kind,
                       decoration: const InputDecoration(labelText: 'نوع', border: OutlineInputBorder()),
                       items: [
                         for (final k in {...kCourseKinds, _kind}) DropdownMenuItem(value: k, child: Text(k)),
@@ -500,7 +500,7 @@ class _JalaliPickerState extends State<_JalaliPicker> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    initialValue: _d,
+                    value: _d,
                     decoration: const InputDecoration(labelText: 'روز', border: OutlineInputBorder()),
                     items: [for (var d = 1; d <= maxDay; d++) DropdownMenuItem(value: d, child: Text(fa(d)))],
                     onChanged: (v) => setState(() => _d = v ?? _d),
@@ -510,7 +510,7 @@ class _JalaliPickerState extends State<_JalaliPicker> {
                 Expanded(
                   flex: 2,
                   child: DropdownButtonFormField<int>(
-                    initialValue: _m,
+                    value: _m,
                     decoration: const InputDecoration(labelText: 'ماه', border: OutlineInputBorder()),
                     items: [
                       for (var m = 1; m <= 12; m++) DropdownMenuItem(value: m, child: Text(kJalaliMonths[m - 1])),
@@ -521,7 +521,7 @@ class _JalaliPickerState extends State<_JalaliPicker> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    initialValue: _y,
+                    value: _y,
                     decoration: const InputDecoration(labelText: 'سال', border: OutlineInputBorder()),
                     items: [for (final y in years) DropdownMenuItem(value: y, child: Text(fa(y)))],
                     onChanged: (v) => setState(() => _y = v ?? _y),

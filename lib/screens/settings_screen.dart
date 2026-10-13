@@ -41,7 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkExact().then((_) => _notif.reschedule(_svc.settings));
+      _checkExact().then((_) => _notif.reschedule());
     }
   }
 
@@ -52,7 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
   Future<void> _save(AppSettings s) async {
     await _svc.update(s);
-    await _notif.reschedule(s);
+    await _notif.reschedule();
     if (mounted) setState(() {});
   }
 
