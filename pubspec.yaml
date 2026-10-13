@@ -39,8 +39,9 @@ flutter:
 
 flutter_launcher_icons:
   android: true
-  ios: true
+  # پروژه فقط اندرویدیه؛ اگه ios: true باشه، flutter_launcher_icons دنبال
+  # پوشهٔ ios/Runner می‌گرده و بیلد با PathNotFoundException می‌افته.
+  ios: false
   image_path: "assets/icon/icon.png"
   adaptive_icon_background: "#F7F8EF"
   adaptive_icon_foreground: "assets/icon/icon_fg.png"
-  remove_alpha_ios: true
