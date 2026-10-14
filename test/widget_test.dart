@@ -45,7 +45,7 @@ void main() {
       final store = ScheduleStore.instance;
       for (final a in store.allSessions) {
         for (final b in store.allSessions) {
-          if (identical(a, b)) continue;
+          if (a.course.id == b.course.id && a.index == b.index) continue;
           if (!a.session.overlaps(b.session)) continue;
           if (a.session.room.isEmpty || a.session.room == 'عمومی') continue;
           expect(
