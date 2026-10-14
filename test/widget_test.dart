@@ -39,17 +39,23 @@ void main() {
       expect(c.sessions.single.room, 'کلاس ۴۰۶');
     });
 
-    test('شمارهٔ کلاس‌های تکراری در برنامه نیست', () {
-      final rooms = <String, int>{};
-      for (final c in ScheduleStore.instance.courses) {
-        for (final s in c.sessions) {
-          if (!s.room.startsWith('کلاس ')) continue;
-          rooms[s.room] = (rooms[s.room] ?? 0) + 1;
+    test('هیچ دو کلاسی هم‌زمان در یک اتاق نیستند', () {
+      // اتاق می‌تواند بین دو درس مشترک باشد (روز/ساعت متفاوت)، ولی نباید
+      // دو جلسهٔ هم‌پوشان در یک اتاق بیفتد.
+      final store = ScheduleStore.instance;
+      for (final a in store.allSessions) {
+        for (final b in store.allSessions) {
+          if (identical(a, b)) continue;
+          if (!a.session.overlaps(b.session)) continue;
+          if (a.session.room.isEmpty || a.session.room == 'عمومی') continue;
+          expect(
+            a.session.room == b.session.room,
+            isFalse,
+            reason: '${a.course.shortName} و ${b.course.shortName} '
+                'هم‌زمان در ${a.session.room}',
+          );
         }
       }
-      // ۲۰۴ فقط برای تاریخ تمدن، ۴۰۶ فقط برای آسیب‌شناسی (JDate/room یکتا)
-      expect(rooms['کلاس ۲۰۴'], 1);
-      expect(rooms['کلاس ۴۰۶'], 1);
     });
   });
 
@@ -134,22 +140,17 @@ void main() {
 
     test('پشتیبان تک‌گروهی فقط گروه فعال را عوض می‌کند', () async {
       final store = ScheduleStore.instance;
-      const single = CourseGroup(
-        id: 'g9',
-        name: 'تنها',
-        courses: [
-          Course(
-            id: 1,
-            name: 'درس تست',
-            colorValue: 0xFF2F6F8F,
-            sessions: [Session(day: 0, start: 8, end: 10, room: 'کلاس ۱۰۱')],
-          ),
-        ],
-      );
-      final payload = '{"group":${single.toJson()}}'.replaceAll("'", '"');
+      // یک پشتیبان تک‌گروهی واقعی (JSON، نه toString مپ دارت)
+      final payload = '''
+{"group":{"id":"g9","name":"تنها","courses":[
+  {"id":1,"name":"درس تست","short":"","prof":"","kind":"تخصصی","units":2,
+   "color":637931535,"sessions":[{"d":0,"s":8.0,"e":10.0,"room":"کلاس ۱۰۱","t":"نظری"}],
+   "note":"","muted":false}
+]}}''';
       await store.importJson(payload);
       expect(store.courses.length, 1);
       expect(store.courses.single.name, 'درس تست');
+      expect(store.courses.single.sessions.single.room, 'کلاس ۱۰۱');
     });
 
     test('شمارهٔ کلاس در پشتیبان حفظ می‌شود', () async {

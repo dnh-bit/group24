@@ -5,6 +5,7 @@ import '../../data/schedule_store.dart';
 import '../../services/notification_service.dart';
 import '../../theme.dart';
 import '../../utils.dart';
+import 'widgets.dart';
 
 /// مدیریت گروه‌های درسی: افزودن، تغییر نام، انتخاب و حذف.
 ///
