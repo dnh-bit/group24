@@ -28,11 +28,20 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # فایل‌های پلتفرم (gradle wrapper، MainActivity و…) رو می‌سازه.
-      # flutter create فایل‌های موجود رو بازنویسی نمی‌کنه، پس AndroidManifest
-      # و build.gradle.kts خودمون دست‌نخورده می‌مونن.
+      # فایل‌های پلتفرم (gradle wrapper و…) رو می‌سازه. flutter create فایل‌های
+      # موجود رو بازنویسی نمی‌کنه، پس AndroidManifest، build.gradle و
+      # MainActivity خودمون دست‌نخورده می‌مونن.
       - name: Create platform files
-        run: flutter create --org ir.cfu --project-name group24 --platforms android .
+        run: flutter create --org cfu.group --project-name course_plan --platforms android .
+
+      # flutter create یه MainActivity هم برای پکیج پیش‌فرض خودش (cfu.group.course_plan)
+      # می‌سازه. ما MainActivity خودمون رو در cfu/group/plan داریم و مانیفست هم
+      # همون رو صدا می‌زنه، پس نسخهٔ اضافی حذف می‌شه تا کلاس تکراری نمونه.
+      - name: Drop the stray generated MainActivity
+        run: |
+          KEEP="android/app/src/main/kotlin/cfu/group/plan/MainActivity.kt"
+          find android/app/src/main/kotlin -name 'MainActivity.kt' -not -path "$KEEP" -print -delete || true
+          test -f "$KEEP"
 
       - name: Read version
         id: ver
@@ -49,12 +58,12 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.GROUP24_UPLOAD_KEYSTORE_B64 }}
           KEYSTORE_PASSWORD: ${{ secrets.GROUP24_KEYSTORE_PASSWORD }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > android/app/group24-upload.jks
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/plan-upload.jks
           cat > android/key.properties <<EOF
           storePassword=$KEYSTORE_PASSWORD
           keyPassword=$KEYSTORE_PASSWORD
           keyAlias=group24-upload
-          storeFile=group24-upload.jks
+          storeFile=plan-upload.jks
           EOF
 
       - name: Install dependencies
@@ -75,13 +84,13 @@ jobs:
       - name: Rename APK
         run: |
           cp build/app/outputs/flutter-apk/app-release.apk \
-             "build/app/outputs/flutter-apk/group24-v${{ steps.ver.outputs.short }}.apk"
+             "build/app/outputs/flutter-apk/plan-v${{ steps.ver.outputs.short }}.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: group24-apk
-          path: build/app/outputs/flutter-apk/group24-v*.apk
+          name: plan-apk
+          path: build/app/outputs/flutter-apk/plan-v*.apk
 
       # هر بیلد خودکار به‌صورت ریلیز گیت‌هاب آرشیو می‌شه
       - name: Create Release
@@ -92,7 +101,7 @@ jobs:
           set -e
           TAG="v${{ steps.ver.outputs.version }}"
           TITLE="${{ steps.ver.outputs.short }}"
-          APK="build/app/outputs/flutter-apk/group24-v${{ steps.ver.outputs.short }}.apk"
+          APK="build/app/outputs/flutter-apk/plan-v${{ steps.ver.outputs.short }}.apk"
           PRERELEASE_FLAG=""
           case "$TITLE" in *-*) PRERELEASE_FLAG="--prerelease";; esac
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
@@ -104,8 +113,8 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --title "$TITLE" \
               $PRERELEASE_FLAG \
-              --notes "برنامهٔ گروه ۲۴ — نسخه $TITLE
-          📱 فایل نصبی: group24-v${{ steps.ver.outputs.short }}.apk
+              --notes "برنامه درسی — نسخه $TITLE
+          📱 فایل نصبی: plan-v${{ steps.ver.outputs.short }}.apk
 
           این بیلد خودکار از آخرین کد شاخه main ساخته شده است." \
               "$APK"

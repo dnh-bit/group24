@@ -21,7 +21,7 @@ class Group24App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'برنامه گروه ۲۴',
+      title: 'برنامه درسی',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
       locale: const Locale('fa', 'IR'),

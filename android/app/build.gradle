@@ -22,7 +22,7 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
-// کلید امضای ثابت پروژه (group24-upload.jks).
+// کلید امضای ثابت پروژه (plan-upload.jks).
 // در CI با سکرت‌ها ساخته می‌شود، لوکال از android/key.properties خوانده می‌شود.
 // اگر نبود، بیلد به کلید debug برمی‌گردد تا هیچ‌وقت شکسته نشود.
 def keystoreProperties = new Properties()
@@ -34,7 +34,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace "ir.cfu.group24"
+    namespace "cfu.group.plan"
     // flutter_local_notifications به compileSdk 35 نیاز دارد
     compileSdk 35
     ndkVersion flutter.ndkVersion
@@ -55,7 +55,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "ir.cfu.group24"
+        applicationId "cfu.group.plan"
         minSdk flutter.minSdkVersion
         targetSdk flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()

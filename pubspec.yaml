@@ -1,7 +1,7 @@
-name: group24
-description: "برنامهٔ هفتگی گروه ۲۴ · دانشگاه فرهنگیان"
+name: course_plan
+description: "برنامه درسی · دانشگاه فرهنگیان"
 publish_to: 'none'
-version: 0.0.1+1
+version: 0.0.2+2
 
 environment:
   sdk: ">=3.5.0 <4.0.0"

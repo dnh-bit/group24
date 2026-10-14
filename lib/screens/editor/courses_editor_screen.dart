@@ -40,7 +40,12 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
 
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: _store.exportJson(pretty: true)));
-    if (mounted) toast(context, 'نسخهٔ پشتیبان کپی شد ✦');
+    if (mounted) toast(context, 'پشتیبان همهٔ گروه‌ها کپی شد ✦');
+  }
+
+  Future<void> _copyActiveGroup() async {
+    await Clipboard.setData(ClipboardData(text: _store.exportActiveGroupJson(pretty: true)));
+    if (mounted) toast(context, 'پشتیبان «${_store.activeGroup.name}» کپی شد ✦');
   }
 
   Future<void> _import() async {
@@ -83,8 +88,11 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('برگردونده بشه به برنامهٔ اولیه؟'),
-        content: const Text('همهٔ تغییراتی که دادی پاک می‌شن.'),
+        title: const Text('همهٔ گروه‌ها برگردونده بشن؟'),
+        content: const Text(
+          'همهٔ گروه‌های درسی و تغییراتشون پاک می‌شن و فقط «گروه اصلی» با '
+          'برنامهٔ پیش‌فرض می‌مونه.',
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('نه')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('آره')),
@@ -92,7 +100,7 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
       ),
     );
     if (ok != true) return;
-    await _store.resetToDefault();
+    await _store.resetAllGroups();
     await NotificationService.instance.reschedule();
   }
 
@@ -120,6 +128,8 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
               switch (v) {
                 case 'copy':
                   _copy();
+                case 'copyGroup':
+                  _copyActiveGroup();
                 case 'import':
                   _import();
                 case 'reset':
@@ -127,9 +137,10 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
               }
             },
             itemBuilder: (_) => const [
-              PopupMenuItem(value: 'copy', child: Text('کپی نسخهٔ پشتیبان')),
+              PopupMenuItem(value: 'copy', child: Text('کپی پشتیبان همهٔ گروه‌ها')),
+              PopupMenuItem(value: 'copyGroup', child: Text('کپی پشتیبان گروه فعال')),
               PopupMenuItem(value: 'import', child: Text('بازگردانی از متن')),
-              PopupMenuItem(value: 'reset', child: Text('بازگردانی برنامهٔ اولیه')),
+              PopupMenuItem(value: 'reset', child: Text('بازگردانی همهٔ گروه‌ها')),
             ],
           ),
         ],

@@ -8,6 +8,7 @@ import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../theme.dart';
 import '../utils.dart';
+import 'editor/groups_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -207,13 +208,33 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             ],
           ),
           const SizedBox(height: 24),
+          const _SectionTitle('گروه‌های درسی'),
+          _Card(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.groups_rounded, color: AppColors.saffron),
+                title: const Text('مدیریت گروه‌ها', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(
+                  'گروه فعال: «${ScheduleStore.instance.activeGroup.name}» · '
+                  '${fa(ScheduleStore.instance.groups.length)} گروه',
+                ),
+                trailing: const Icon(Icons.chevron_left_rounded),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const GroupsScreen()),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
           const _SectionTitle('درباره'),
           _Card(
             children: [
               ListTile(
                 leading: const Icon(Icons.info_outline_rounded),
-                title: const Text('برنامه گروه ۲۴'),
+                title: const Text('برنامه درسی'),
                 subtitle: Text(
+                  '${fa(ScheduleStore.instance.groups.length)} گروه درسی · '
+                  'گروه فعال «${ScheduleStore.instance.activeGroup.name}»\n'
                   '${fa(ScheduleStore.instance.courses.length)} درس · ${fa(ScheduleStore.instance.totalUnits)} واحد\n'
                   'یادآوری‌ها به وقت تهران و کاملاً آفلاین کار می‌کنن.',
                 ),

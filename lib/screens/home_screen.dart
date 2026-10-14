@@ -8,6 +8,7 @@ import '../services/notification_service.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../widgets/star.dart';
+import 'editor/groups_screen.dart';
 import 'schedule_screen.dart';
 import 'settings_screen.dart';
 
@@ -40,56 +41,100 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final store = ScheduleStore.instance;
-    final next = store.findNext(_now);
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+    return ListenableBuilder(
+      listenable: store,
+      builder: (context, _) {
+        final next = store.findNext(_now);
+        return Scaffold(
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Expanded(
-                    child: Text(
-                      'سلام ✦',
-                      style: TextStyle(fontFamily: kTitleFont, fontSize: 40, color: AppColors.saffron, height: 1.1),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'سلام ✦',
+                          style: TextStyle(fontFamily: kTitleFont, fontSize: 40, color: AppColors.saffron, height: 1.1),
+                        ),
+                      ),
+                      IconButton.filledTonal(
+                        tooltip: 'گروه‌های درسی',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const GroupsScreen()),
+                        ),
+                        icon: const Icon(Icons.groups_rounded),
+                      ),
+                      const SizedBox(width: 6),
+                      IconButton.filledTonal(
+                        tooltip: 'تنظیمات',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        ),
+                        icon: const Icon(Icons.settings_rounded),
+                      ),
+                    ],
+                  ),
+                  const Text(
+                    'دانشگاه فرهنگیان · رشتهٔ امور تربیتی',
+                    style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  // گروه فعال — با زدن روش، صفحهٔ گروه‌ها باز می‌شه
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(99),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const GroupsScreen()),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.bookmark_rounded, size: 16, color: AppColors.saffron),
+                            const SizedBox(width: 6),
+                            Text(
+                              store.activeGroup.name,
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.expand_more_rounded, size: 16, color: AppColors.muted),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  IconButton.filledTonal(
-                    tooltip: 'تنظیمات',
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  const SizedBox(height: 20),
+                  _MainOption(
+                    title: 'برنامه درسی',
+                    subtitle: next == null
+                        ? 'برنامهٔ هفتگی و تاریخ امتحان‌ها'
+                        : '${next.ongoing ? 'الان سر کلاسی' : 'کلاس بعدی'}: ${next.ref.course.shortName}\n'
+                            '${next.whenLabel} · ${fmtTime(next.ref.session.start)} · ${next.ref.session.room}',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ScheduleScreen()),
                     ),
-                    icon: const Icon(Icons.settings_rounded),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${fa(store.courses.length)} درس · ${fa(store.totalUnits)} واحد · نیم‌سال اول ۱۴۰۵–۱۴۰۶',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.muted, fontSize: 13),
                   ),
                 ],
               ),
-              const Text(
-                'دانشگاه فرهنگیان · رشتهٔ امور تربیتی',
-                style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 28),
-              _MainOption(
-                title: 'برنامه گروه ۲۴',
-                subtitle: next == null
-                    ? 'برنامهٔ هفتگی و تاریخ امتحان‌ها'
-                    : '${next.ongoing ? 'الان سر کلاسی' : 'کلاس بعدی'}: ${next.ref.course.shortName}\n'
-                        '${next.whenLabel} · ${fmtTime(next.ref.session.start)} · ${next.ref.session.room}',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ScheduleScreen()),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${fa(store.courses.length)} درس · ${fa(store.totalUnits)} واحد · نیم‌سال اول ۱۴۰۵–۱۴۰۶',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.muted, fontSize: 13),
-              ),
-            ],
+            ),
           ),
-          ),
-        ),
+        );
+      },
     );
   }
 }

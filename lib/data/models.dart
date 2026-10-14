@@ -202,6 +202,48 @@ class Conflict {
   const Conflict(this.a, this.b);
 }
 
+/// یک «گروه درسی» با برنامهٔ خودش.
+///
+/// هر گروه مجموعهٔ مستقل خودش از درس‌ها و جلسه‌ها را دارد؛ کاربر می‌تواند
+/// چند گروه بسازد و بین‌شان جابه‌جا شود. فقط گروه فعال روی صفحهٔ اصلی، جدول
+/// هفتگی، فصل امتحان‌ها و اعلان‌ها اثر می‌گذارد.
+class CourseGroup {
+  final String id;
+  final String name;
+  final List<Course> courses;
+
+  const CourseGroup({
+    required this.id,
+    required this.name,
+    this.courses = const [],
+  });
+
+  CourseGroup copyWith({String? id, String? name, List<Course>? courses}) => CourseGroup(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        courses: courses ?? this.courses,
+      );
+
+  int get totalUnits => courses.fold(0, (s, c) => s + c.units);
+
+  int get sessionCount => courses.fold(0, (s, c) => s + c.sessions.length);
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'courses': [for (final c in courses) c.toJson()],
+      };
+
+  factory CourseGroup.fromJson(Map<String, dynamic> j) => CourseGroup(
+        id: (j['id'] ?? 'g1').toString(),
+        name: (j['name'] ?? kDefaultGroupName).toString(),
+        courses: [
+          for (final c in (j['courses'] as List? ?? const []))
+            Course.fromJson(Map<String, dynamic>.from(c as Map)),
+        ],
+      );
+}
+
 /// پالت رنگ‌های درس‌ها (همون رنگ‌های نسخهٔ وب + چند تا اضافه)
 const List<int> kCoursePalette = [
   0xFF2F6F8F, 0xFFB8475A, 0xFF6B5AA6, 0xFFB8620E, 0xFFC2410C, 0xFF648C16,
@@ -210,3 +252,6 @@ const List<int> kCoursePalette = [
 
 const List<String> kCourseKinds = ['تخصصی', 'عمومی', 'معارف', 'پایه', 'کارورزی', 'اختیاری'];
 const List<String> kSessionTypes = ['نظری', 'عملی'];
+
+/// نام پیش‌فرض اولین گروه درسی (برنامهٔ اصلی برنامه).
+const String kDefaultGroupName = 'گروه اصلی';

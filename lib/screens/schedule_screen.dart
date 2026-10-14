@@ -10,6 +10,7 @@ import '../utils.dart';
 import '../widgets/star.dart';
 import 'editor/course_form_screen.dart';
 import 'editor/courses_editor_screen.dart';
+import 'editor/groups_screen.dart';
 
 enum _ViewMode { day, week }
 
@@ -80,8 +81,15 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     final next = _store.findNext(_now);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('برنامه گروه ۲۴', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        title: const Text('برنامه درسی', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
         actions: [
+          IconButton(
+            tooltip: 'گروه‌های درسی',
+            icon: const Icon(Icons.groups_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const GroupsScreen()),
+            ),
+          ),
           IconButton(
             tooltip: 'ویرایش کلاس‌ها و امتحان‌ها',
             icon: const Icon(Icons.edit_calendar_rounded),
@@ -95,6 +103,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
         children: [
           const _Poster(),
+          _ActiveGroupBar(groupName: _store.activeGroup.name),
           if (next != null) _NextPill(next: next, onTap: () => _openCourse(next.ref.course)),
           const SizedBox(height: 14),
           SegmentedButton<_ViewMode>(
@@ -172,6 +181,30 @@ class _Poster extends StatelessWidget {
           ),
           SizedBox(width: 8),
           SpinningStar(size: 70),
+        ],
+      ),
+    );
+  }
+}
+
+// ───────────────────────── Active group bar ─────────────────────────
+
+class _ActiveGroupBar extends StatelessWidget {
+  final String groupName;
+  const _ActiveGroupBar({required this.groupName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          const Icon(Icons.bookmark_rounded, size: 15, color: AppColors.olive),
+          const SizedBox(width: 6),
+          Text(
+            groupName,
+            style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.olive, fontSize: 13.5),
+          ),
         ],
       ),
     );

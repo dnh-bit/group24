@@ -14,7 +14,7 @@ const List<Course> kDefaultCourses = [
     units: 2,
     colorValue: 0xFF2F6F8F,
     exam: Exam(date: JDate(1405, 10, 29), start: 8, end: 10),
-    sessions: [Session(day: 3, start: 15.5, end: 17.5, room: 'کلاس ۴۰۳', type: 'نظری')],
+    sessions: [Session(day: 3, start: 15.5, end: 17.5, room: 'کلاس ۲۰۴', type: 'نظری')],
   ),
   Course(
     id: 2,
@@ -36,7 +36,7 @@ const List<Course> kDefaultCourses = [
     units: 2,
     colorValue: 0xFF6B5AA6,
     exam: Exam(date: JDate(1405, 10, 27), start: 12.5, end: 14.5),
-    sessions: [Session(day: 3, start: 17.5, end: 19.5, room: 'کلاس ۴۰۷', type: 'نظری')],
+    sessions: [Session(day: 3, start: 17.5, end: 19.5, room: 'کلاس ۴۰۶', type: 'نظری')],
   ),
   Course(
     id: 4,
