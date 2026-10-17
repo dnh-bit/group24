@@ -25,9 +25,9 @@ void main() {
   });
 
   test('next class ignores one-hour sessions', () {
-    // یکشنبه ساعت ۱۶: جلسه‌های قبلی گذشته‌اند و کارگاهِ تک‌ساعتهٔ ۱۹:۳۰
-    // برگزار نمی‌شه → کلاس بعدی باید کارورزی (دوشنبه) باشه
-    final sunday = DateTime(2026, 10, 18, 16, 0);
+    // یکشنبه ساعت ۱۸: همهٔ جلسات امروز (شامل مدیریت ۱۵:۳۰–۱۷:۳۰) گذشته‌اند و
+    // کارگاهِ تک‌ساعتهٔ ۱۹:۳۰ برگزار نمی‌شه → کلاس بعدی باید کارورزی (دوشنبه) باشه
+    final sunday = DateTime(2026, 10, 18, 18, 0);
     final next = ScheduleStore.instance.findNext(sunday)!;
     expect(next.ref.course.id, 6);
     expect(next.daysAhead, 1);
