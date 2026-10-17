@@ -52,6 +52,24 @@ jobs:
           # نسخهٔ کوتاه بدون بیلد نامبر: 0.0.1 از 0.0.1+1
           echo "short=${V%%+*}" >> "$GITHUB_OUTPUT"
 
+      # توضیحات ریلیز از CHANGELOG.md می‌آید — بخشِ همین نسخه
+      - name: Prepare release notes
+        id: notes
+        shell: bash
+        run: |
+          V="${{ steps.ver.outputs.short }}"
+          if [ -f CHANGELOG.md ]; then
+            awk -v ver="$V" '
+              $0 == ("## " ver) {found=1; next}
+              found && $0 ~ /^## / {exit}
+              found {print}
+            ' CHANGELOG.md > release_notes.md
+          fi
+          if [ ! -s release_notes.md ]; then
+            echo "## 📱 برنامه درسی — نسخهٔ $V" > release_notes.md
+          fi
+          cat release_notes.md
+
       # کلید امضای ثابت پروژه (base64 جفت‌کلید داخل سکرت ریپو)
       - name: Decode signing keystore
         env:
@@ -113,9 +131,6 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --title "$TITLE" \
               $PRERELEASE_FLAG \
-              --notes "برنامه درسی — نسخه $TITLE
-          📱 فایل نصبی: plan-v${{ steps.ver.outputs.short }}.apk
-
-          این بیلد خودکار از آخرین کد شاخه main ساخته شده است." \
+              --notes-file release_notes.md \
               "$APK"
           fi
