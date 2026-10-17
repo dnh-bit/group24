@@ -253,5 +253,8 @@ const List<int> kCoursePalette = [
 const List<String> kCourseKinds = ['تخصصی', 'عمومی', 'معارف', 'پایه', 'کارورزی', 'اختیاری'];
 const List<String> kSessionTypes = ['نظری', 'عملی'];
 
-/// نام پیش‌فرض اولین گروه درسی (برنامهٔ اصلی برنامه).
-const String kDefaultGroupName = 'گروه اصلی';
+/// نام پیش‌فرض گروه اول (برنامهٔ گروه ۲۴).
+const String kDefaultGroupName = 'برنامه درسی گروه ۲۴';
+
+/// نام پیش‌فرض گروه دوم (برنامهٔ گروه ۲۵).
+const String kG25GroupName = 'برنامه درسی گروه ۲۵';

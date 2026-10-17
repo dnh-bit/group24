@@ -22,10 +22,14 @@ class ScheduleStore extends ChangeNotifier {
   static const _activeKey = 'active_group_v1';
 
   SharedPreferences? _prefs;
-  List<CourseGroup> _groups = [
-    CourseGroup(id: 'g1', name: kDefaultGroupName, courses: List.of(kDefaultCourses)),
-  ];
+  List<CourseGroup> _groups = _defaultGroups();
   String _activeId = 'g1';
+
+  /// برنامهٔ پیش‌فرض: گروه ۲۴ و گروه ۲۵ در تاییدیهٔ انتخاب واحد.
+  static List<CourseGroup> _defaultGroups() => [
+        CourseGroup(id: 'g1', name: kDefaultGroupName, courses: List.of(kDefaultCourses)),
+        CourseGroup(id: 'g2', name: kG25GroupName, courses: List.of(kG25Courses)),
+      ];
 
   // ───────────── گروه‌ها ─────────────
 
@@ -53,6 +57,7 @@ class ScheduleStore extends ChangeNotifier {
           _groups = decoded;
           final saved = _prefs!.getString(_activeKey);
           _activeId = _groups.any((g) => g.id == saved) ? saved! : _groups.first.id;
+          await _migrateOldDefault();
           return;
         }
       } catch (_) {
@@ -67,6 +72,7 @@ class ScheduleStore extends ChangeNotifier {
         if (list.isNotEmpty) {
           _groups = [
             CourseGroup(id: 'g1', name: kDefaultGroupName, courses: list),
+            CourseGroup(id: 'g2', name: kG25GroupName, courses: List.of(kG25Courses)),
           ];
           _activeId = 'g1';
           await _commit();
@@ -76,10 +82,19 @@ class ScheduleStore extends ChangeNotifier {
         // بی‌خیال، پیش‌فرض می‌مونه
       }
     }
-    _groups = [
-      CourseGroup(id: 'g1', name: kDefaultGroupName, courses: List.of(kDefaultCourses)),
-    ];
+    _groups = _defaultGroups();
     _activeId = 'g1';
+  }
+
+  /// اگر دادهٔ قدیمی فقط یک «گروه اصلی» داشت، نامش را به
+  /// «برنامه درسی گروه ۲۴» درمی‌آوریم و گروه ۲۵ را هم اضافه می‌کنیم.
+  Future<void> _migrateOldDefault() async {
+    if (_groups.length == 1 && _groups.first.name == 'گروه اصلی') {
+      _groups[0] = _groups[0].copyWith(name: kDefaultGroupName);
+      _groups.add(CourseGroup(id: 'g2', name: kG25GroupName, courses: List.of(kG25Courses)));
+      if (_activeId != 'g1') _activeId = _groups.first.id;
+      await _commit();
+    }
   }
 
   Future<void> _commit() async {
@@ -187,13 +202,26 @@ class ScheduleStore extends ChangeNotifier {
   }
 
   /// درس‌های گروه فعال را به برنامهٔ اولیهٔ همان گروه برمی‌گردونه.
-  Future<void> resetToDefault() async => _setCourses(List.of(kDefaultCourses));
+  Future<void> resetToDefault() async {
+    final list = _activeGroupIdToDefaultCourses();
+    if (list == null) return;
+    await _setCourses(List.of(list));
+  }
 
-  /// همهٔ گروه‌ها را پاک و فقط گروه اصلی را با برنامهٔ پیش‌فرض برمی‌گردونه.
+  List<Course>? _activeGroupIdToDefaultCourses() {
+    switch (_activeId) {
+      case 'g1':
+        return kDefaultCourses;
+      case 'g2':
+        return kG25Courses;
+      default:
+        return null;
+    }
+  }
+
+  /// همهٔ گروه‌ها را پاک و فقط گروه‌های پیش‌فرض (۲۴ و ۲۵) را برمی‌گردونه.
   Future<void> resetAllGroups() async {
-    _groups = [
-      CourseGroup(id: 'g1', name: kDefaultGroupName, courses: List.of(kDefaultCourses)),
-    ];
+    _groups = _defaultGroups();
     _activeId = 'g1';
     await _commit();
   }
@@ -268,10 +296,29 @@ class ScheduleStore extends ChangeNotifier {
 
   // ───────────── پرس‌وجوها (روی گروه فعال) ─────────────
 
-  List<SessionRef> get allSessions => [
-        for (final c in activeGroup.courses)
+  List<SessionRef> get allSessions => sessionsOfGroup(activeGroup);
+
+  List<SessionRef> sessionsOfGroup(CourseGroup group) => [
+        for (final c in group.courses)
           for (var i = 0; i < c.sessions.length; i++) SessionRef(c, c.sessions[i], i),
       ];
+
+  /// «کلاس بعدی» برای هر گروه دلخواه (صفحهٔ اصلی برای همهٔ گروه‌ها کارت می‌سازد).
+  NextClass? findNextFor(CourseGroup group, DateTime now) {
+    final today = dayIndexOf(now);
+    final h = hourOf(now);
+    for (var k = 0; k < 7; k++) {
+      final day = (today + k) % 7;
+      final list = sessionsOfGroup(group).where((s) => s.session.day == day).toList();
+      list.sort((a, b) => a.session.start.compareTo(b.session.start));
+      final visible = list.where((s) => k > 0 || s.session.end > h).toList();
+      if (visible.isNotEmpty) {
+        final first = visible.first;
+        return NextClass(first, k, k == 0 && first.session.start <= h);
+      }
+    }
+    return null;
+  }
 
   List<SessionRef> sessionsOn(int day) {
     final list = allSessions.where((s) => s.session.day == day).toList();
@@ -279,19 +326,7 @@ class ScheduleStore extends ChangeNotifier {
     return list;
   }
 
-  NextClass? findNext(DateTime now) {
-    final today = dayIndexOf(now);
-    final h = hourOf(now);
-    for (var k = 0; k < 7; k++) {
-      final day = (today + k) % 7;
-      final list = sessionsOn(day).where((s) => k > 0 || s.session.end > h).toList();
-      if (list.isNotEmpty) {
-        final first = list.first;
-        return NextClass(first, k, k == 0 && first.session.start <= h);
-      }
-    }
-    return null;
-  }
+  NextClass? findNext(DateTime now) => findNextFor(activeGroup, now);
 
   List<Course> examsSorted() {
     final list = activeGroup.courses.where((c) => c.exam != null).toList();

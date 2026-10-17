@@ -65,20 +65,24 @@ void main() {
       await ScheduleStore.instance.resetAllGroups();
     });
 
-    test('پیش‌فرض یک گروه دارد', () {
+    test('پیش‌فرض دو گروه دارد: گروه ۲۴ و گروه ۲۵', () {
       final store = ScheduleStore.instance;
-      expect(store.groups.length, 1);
+      expect(store.groups.length, 2);
       expect(store.activeGroupId, 'g1');
-      expect(store.courses.length, 9);
+      expect(store.groups[0].name, 'برنامه درسی گروه ۲۴');
+      expect(store.groups[1].name, 'برنامه درسی گروه ۲۵');
+      expect(store.groups[0].courses.length, 9);
+      expect(store.groups[1].courses.length, 9);
+      expect(store.courses.length, 9); // گروه فعال = گروه ۲۴
     });
 
     test('افزودن گروه، فعالش می‌کند و درس‌ها جدا می‌مانند', () async {
       final store = ScheduleStore.instance;
       final before = store.courses.length;
 
-      await store.addGroup(name: 'گروه ۲۵');
-      expect(store.groups.length, 2);
-      expect(store.activeGroup.name, 'گروه ۲۵');
+      await store.addGroup(name: 'ترم دیگر');
+      expect(store.groups.length, 3);
+      expect(store.activeGroup.name, 'ترم دیگر');
       expect(store.courses, isEmpty); // گروه جدید بدون درس
 
       // گروه اول دست‌نخورده
@@ -104,6 +108,25 @@ void main() {
       expect(store.activeGroup.name.contains('گروه'), true);
     });
 
+    test('برنامهٔ گروه ۲۵: مکان LMS و ساعتِ تغییر یافتهٔ تاریخ تمدن', () {
+      final store = ScheduleStore.instance;
+      final g25 = store.groups.firstWhere((g) => g.name == 'برنامه درسی گروه ۲۵');
+      expect(g25.courses.length, 9);
+      // درس ۱ = تاریخ تمدن: پنج‌شنبه ۱۸ تا ۲۰ در سامانهٔ LMS
+      final history = g25.courses.first;
+      expect(history.name, 'تاریخ فرهنگ و تمدن اسلام و ایران');
+      expect(history.sessions.single.day, 5);
+      expect(history.sessions.single.start, 18.0);
+      expect(history.sessions.single.end, 20.0);
+      expect(history.sessions.single.room, 'سامانه LMS');
+      // همهٔ جلسه‌های گروه ۲۵ محل برگزاری LMS دارند
+      for (final c in g25.courses) {
+        for (final s in c.sessions) {
+          expect(s.room, 'سامانه LMS', reason: c.name);
+        }
+      }
+    });
+
     test('تغییر نام گروه', () async {
       final store = ScheduleStore.instance;
       await store.renameGroup('g1', 'ترم دوم');
@@ -112,6 +135,9 @@ void main() {
 
     test('آخرین گروه پاک نمی‌شه', () async {
       final store = ScheduleStore.instance;
+      expect(store.groups.length, 2);
+      expect(await store.removeGroup('g2'), true);
+      expect(store.groups.length, 1);
       expect(await store.removeGroup('g1'), false);
       expect(store.groups.length, 1);
     });
@@ -121,7 +147,7 @@ void main() {
       await store.addGroup(name: 'موقت');
       final id = store.activeGroupId;
       expect(await store.removeGroup(id), true);
-      expect(store.activeGroupId, 'g1');
+      expect(store.activeGroupId, anyOf('g1', 'g2'));
     });
 
     test('پشتیبان کامل رفت‌وبرگشت دارد', () async {
@@ -130,11 +156,11 @@ void main() {
       final dump = store.exportJson();
 
       await store.resetAllGroups();
-      expect(store.groups.length, 1);
+      expect(store.groups.length, 2); // دو گروه پیش‌فرض
 
       final n = await store.importJson(dump);
-      expect(n, 18); // ۹ درس در هر گروه
-      expect(store.groups.length, 2);
+      expect(n, 27); // ۹ درس در هر گروه × ۳ گروه
+      expect(store.groups.length, 3);
       expect(store.groups.map((g) => g.name), contains('گروه دوم'));
     });
 

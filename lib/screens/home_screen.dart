@@ -44,10 +44,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListenableBuilder(
       listenable: store,
       builder: (context, _) {
-        final next = store.findNext(_now);
+        final cards = [for (final g in store.groups) (group: g, next: store.findNextFor(g, _now))];
         return Scaffold(
           body: SafeArea(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -112,20 +112,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  _MainOption(
-                    title: 'برنامه درسی',
-                    subtitle: next == null
-                        ? 'برنامهٔ هفتگی و تاریخ امتحان‌ها'
-                        : '${next.ongoing ? 'الان سر کلاسی' : 'کلاس بعدی'}: ${next.ref.course.shortName}\n'
-                            '${next.whenLabel} · ${fmtTime(next.ref.session.start)} · ${next.ref.session.room}',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ScheduleScreen()),
+                  const SizedBox(height: 12),
+                  // برای هر گروه درسی یک کارت با برنامهٔ خودش
+                  for (final card in cards) ...[
+                    _MainOption(
+                      title: card.group.name,
+                      subtitle: card.next == null
+                          ? (card.group.courses.isEmpty
+                              ? 'این گروه هنوز درسی نداره — از ویرایشگر اضافه کن'
+                              : 'برنامهٔ هفتگی و تاریخ امتحان‌ها')
+                          : '${card.next.ongoing ? 'الان سر کلاسی' : 'کلاس بعدی'}: ${card.next.ref.course.shortName}\n'
+                              '${card.next.whenLabel} · ${fmtTime(card.next.ref.session.start)} · ${card.next.ref.session.room}',
+                      onTap: () {
+                        store.selectGroup(card.group.id);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const ScheduleScreen()),
+                        );
+                      },
                     ),
-                  ),
-                  const Spacer(),
+                    const SizedBox(height: 16),
+                  ],
                   Text(
-                    '${fa(store.courses.length)} درس · ${fa(store.totalUnits)} واحد · نیم‌سال اول ۱۴۰۵–۱۴۰۶',
+                    'نیم‌سال اول ۱۴۰۵–۱۴۰۶',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: AppColors.muted, fontSize: 13),
                   ),
