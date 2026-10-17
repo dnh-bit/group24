@@ -14,6 +14,12 @@ class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
+  /// ضربهٔ کاربر روی اعلان — از main تنظیم می‌شه تا مسیر یادگیری باز بشه.
+  static void Function(String payload)? onNotificationTap;
+
+  /// اگر کاربر قبل از آماده شدن navigator روی اعلان بزنه، اینجا نگه داشته می‌شه.
+  static String? pendingTap;
+
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   bool _ready = false;
   Future<void> _queue = Future.value();
@@ -63,9 +69,26 @@ class NotificationService {
         requestSoundPermission: false,
       ),
     );
-    await _plugin.initialize(settings);
+    await _plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: _handleTap,
+      onDidReceiveBackgroundNotificationResponse: backgroundTap,
+    );
     _ready = true;
   }
+
+  static void _handleTap(NotificationResponse r) {
+    final p = r.payload ?? '';
+    final f = onNotificationTap;
+    if (f != null) {
+      f(p);
+    } else if (p.startsWith('course:') || p.startsWith('exam:')) {
+      pendingTap = p;
+    }
+  }
+
+  @pragma('vm:entry-point')
+  static void backgroundTap(NotificationResponse r) => _handleTap(r);
 
   /// اجازهٔ نمایش اعلان (اندروید ۱۳+ و iOS)
   Future<bool> requestPermission() async {
@@ -120,11 +143,17 @@ class NotificationService {
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
 
+    // فقط برنامهٔ گروهی که کاربر برای اعلان انتخاب کرده (نه همهٔ گروه‌ها)
+    final notifGroup = store.groupForNotifications();
+    final groupSessions = store.sessionsOfGroup(notifGroup);
+
     if (s.classReminders) {
-      for (final ref in store.allSessions) {
+      for (final ref in groupSessions) {
         final c = ref.course;
         if (c.muted) continue;
         final se = ref.session;
+        // جلسات تک‌ساعته برگزار نمی‌شن → اعلان هم ندارن
+        if (se.isOneHour) continue;
         await _plugin.zonedSchedule(
           c.id * 20 + ref.index,
           '${fa(s.minutesBefore)} دقیقه تا کلاس ${c.shortName}',
@@ -140,7 +169,7 @@ class NotificationService {
     }
 
     if (s.examReminders) {
-      for (final c in store.courses) {
+      for (final c in notifGroup.courses) {
         final e = c.exam;
         if (e == null || c.muted) continue;
         final g = e.gregorian;

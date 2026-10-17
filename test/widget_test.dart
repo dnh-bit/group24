@@ -17,11 +17,20 @@ void main() {
   });
 
   test('next class is found', () {
-    // یکشنبه ساعت ۱۰ صبح → فضاهای تربیتی (۹:۳۰ تا ۱۱:۳۰) در حال برگزاریه
-    final sunday = DateTime(2026, 10, 18, 10, 0);
+    // یکشنبه ساعت ۹ صبح → فضاهای تربیتی (۸ تا ۱۰) در حال برگزاریه
+    final sunday = DateTime(2026, 10, 18, 9, 0);
     final next = ScheduleStore.instance.findNext(sunday)!;
     expect(next.ref.course.id, 8);
     expect(next.ongoing, true);
+  });
+
+  test('next class ignores one-hour sessions', () {
+    // یکشنبه ساعت ۱۶: جلسه‌های قبلی گذشته‌اند و کارگاهِ تک‌ساعتهٔ ۱۹:۳۰
+    // برگزار نمی‌شه → کلاس بعدی باید کارورزی (دوشنبه) باشه
+    final sunday = DateTime(2026, 10, 18, 16, 0);
+    final next = ScheduleStore.instance.findNext(sunday)!;
+    expect(next.ref.course.id, 6);
+    expect(next.daysAhead, 1);
   });
 
   test('default schedule has no conflicts', () {

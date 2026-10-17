@@ -100,7 +100,7 @@ const List<Course> kDefaultCourses = [
     exam: Exam(date: JDate(1405, 10, 22), start: 8, end: 10),
     sessions: [
       Session(day: 4, start: 7.5, end: 8.5, room: 'کلاس ۳۰۷', type: 'نظری'),
-      Session(day: 1, start: 9.5, end: 11.5, room: 'کلاس ۳۰۳', type: 'عملی'),
+      Session(day: 1, start: 8.0, end: 10.0, room: 'کلاس ۳۰۳', type: 'عملی'),
     ],
   ),
   Course(

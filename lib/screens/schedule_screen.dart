@@ -15,7 +15,8 @@ import 'editor/groups_screen.dart';
 enum _ViewMode { day, week }
 
 class ScheduleScreen extends StatefulWidget {
-  const ScheduleScreen({super.key});
+  final int? focusCourseId; // اگر بسته بشه، کارت این درس خودکار باز می‌شه
+  const ScheduleScreen({super.key, this.focusCourseId});
 
   @override
   State<ScheduleScreen> createState() => _ScheduleScreenState();
@@ -32,6 +33,19 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 30), (_) => setState(() => _now = DateTime.now()));
+    final focus = widget.focusCourseId;
+    if (focus != null) {
+      // روزِ همان درس را انتخاب می‌کنیم و بعد از اولین فریم کارتش را باز می‌کنیم
+      for (final c in _store.activeGroup.courses) {
+        if (c.id == focus && c.sessions.isNotEmpty) {
+          _selectedDay = c.sessions.first.day;
+        }
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final c = _store.byId(focus);
+        if (mounted && c != null) _openCourse(c);
+      });
+    }
   }
 
   @override
@@ -392,7 +406,7 @@ class _DayList extends StatelessWidget {
         for (final ref in list)
           _SessionCard(
             refData: ref,
-            ongoing: isToday && ref.session.start <= hour && hour < ref.session.end,
+            ongoing: isToday && !ref.session.isOneHour && ref.session.start <= hour && hour < ref.session.end,
             past: isToday && ref.session.end <= hour,
             onTap: () => onTap(ref.course),
           ),
@@ -412,8 +426,9 @@ class _SessionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = refData.course;
     final s = refData.session;
+    final cancelled = s.isOneHour; // تک‌ساعته‌ها برگزار نمی‌شن
     return Opacity(
-      opacity: past ? 0.45 : 1,
+      opacity: (past ? 0.45 : 1.0) * (cancelled ? 0.85 : 1.0),
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Row(
@@ -433,7 +448,7 @@ class _SessionCard extends StatelessWidget {
             ),
             Expanded(
               child: Material(
-                color: c.color,
+                color: cancelled ? const Color(0xFF9AA0A6) : c.color,
                 borderRadius: BorderRadius.circular(18),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(18),
@@ -480,7 +495,7 @@ class _SessionCard extends StatelessWidget {
                                   style: const TextStyle(color: Colors.white, fontSize: 13.5)),
                             ),
                             const SizedBox(width: 8),
-                            _Tag(text: s.type, dark: false),
+                            _Tag(text: cancelled ? 'برگزار نمی‌شود' : s.type, dark: false),
                           ],
                         ),
                         const SizedBox(height: 2),
@@ -690,8 +705,9 @@ class _WeekBlock extends StatelessWidget {
     final c = refData.course;
     final s = refData.session;
     final long = s.length >= 2;
+    final cancelled = s.isOneHour;
     return Material(
-      color: c.color,
+      color: cancelled ? const Color(0xFF9AA0A6) : c.color,
       borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -703,13 +719,13 @@ class _WeekBlock extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                long ? c.shortName : c.tinyName,
+                cancelled ? c.tinyName : (long ? c.shortName : c.tinyName),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12.5, height: 1.3),
               ),
               Text(
-                long ? [if (s.room.isNotEmpty) s.room, s.type].join(' · ') : fmtTime(s.start),
+                cancelled ? 'برگزار نمی‌شود' : (long ? [if (s.room.isNotEmpty) s.room, s.type].join(' · ') : fmtTime(s.start)),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white, fontSize: 11.5),
@@ -874,7 +890,7 @@ class _CourseSheet extends StatelessWidget {
                     Text('${fmtTime(s.start)} تا ${fmtTime(s.end)}'),
                     const SizedBox(width: 10),
                     Expanded(child: Text(s.room, overflow: TextOverflow.ellipsis)),
-                    _Tag(text: s.type),
+                    _Tag(text: s.isOneHour ? 'برگزار نمی‌شود' : s.type),
                   ],
                 ),
               ),

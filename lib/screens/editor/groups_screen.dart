@@ -160,7 +160,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
                 ),
                 child: const Text(
                   'هر گروه برنامهٔ خودش رو داره. گروهی که «فعال» باشه توی صفحهٔ اصلی، '
-                  'جدول هفتگی، امتحان‌ها و اعلان‌ها نشون داده می‌شه.',
+                  'جدول هفتگی و امتحان‌ها نشون داده می‌شه. اعلان‌ها هم فقط از '
+                  'برنامه‌ای می‌آد که توی تنظیمات برای اعلان انتخاب شده.',
                   style: TextStyle(color: AppColors.muted, height: 1.7, fontSize: 13),
                 ),
               ),

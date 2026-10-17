@@ -83,7 +83,8 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   Widget build(BuildContext context) {
     final s = _svc.settings;
     final m = _minutes.round();
-    final next = ScheduleStore.instance.findNext(DateTime.now());
+    final notifNext =
+        ScheduleStore.instance.findNextFor(ScheduleStore.instance.groupForNotifications(), DateTime.now());
 
     return Scaffold(
       appBar: AppBar(title: const Text('تنظیمات', style: TextStyle(fontWeight: FontWeight.w800))),
@@ -150,11 +151,11 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                               ),
                           ],
                         ),
-                        if (next != null) ...[
+                        if (notifNext != null) ...[
                           const SizedBox(height: 10),
                           Text(
-                            'مثلاً برای «${next.ref.course.shortName}» ساعت '
-                            '${fmtTime(next.ref.session.start - m / 60)} خبرت می‌کنم.',
+                            'مثلاً برای «${notifNext.ref.course.shortName}» ساعت '
+                            '${fmtTime(notifNext.ref.session.start - m / 60)} خبرت می‌کنم.',
                             style: const TextStyle(color: AppColors.muted, fontSize: 13),
                           ),
                         ],
@@ -175,6 +176,51 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                 title: const Text('یادآوری امتحان‌ها', style: TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: const Text('شب قبل از هر امتحان، ساعت ۲۰:۰۰'),
               ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _Card(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.groups_2_rounded, color: AppColors.saffron),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text('برنامهٔ اعلان‌ها',
+                              style: TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'یادآوری‌ها فقط از «یک» برنامه می‌آد — کدوم گروه بهت اعلان بده؟',
+                      style: TextStyle(color: AppColors.muted, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+              for (final g in ScheduleStore.instance.groups)
+                Builder(builder: (context) {
+                  final selected = s.notifGroupId.isEmpty
+                      ? ScheduleStore.instance.activeGroupId
+                      : s.notifGroupId;
+                  return RadioListTile<String>(
+                    value: g.id,
+                    groupValue: selected,
+                    onChanged: (v) => _save(s.copyWith(notifGroupId: v)),
+                    activeColor: AppColors.saffron,
+                    title: Text(g.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text(
+                      '${fa(g.courses.length)} درس · ${fa(g.totalUnits)} واحد',
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                  );
+                }),
             ],
           ),
           if (_isAndroid && !_exactOk) ...[

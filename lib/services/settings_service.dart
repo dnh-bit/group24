@@ -6,12 +6,14 @@ class AppSettings {
   final int minutesBefore; // ۱ تا ۱۵
   final bool examReminders;
   final bool askedPermission;
+  final String notifGroupId; // گروهی که اعلان‌ها به برنامهٔ اوش می‌رفته ('' = گروه فعال)
 
   const AppSettings({
     this.classReminders = true,
     this.minutesBefore = 15,
     this.examReminders = true,
     this.askedPermission = false,
+    this.notifGroupId = '',
   });
 
   AppSettings copyWith({
@@ -19,12 +21,14 @@ class AppSettings {
     int? minutesBefore,
     bool? examReminders,
     bool? askedPermission,
+    String? notifGroupId,
   }) =>
       AppSettings(
         classReminders: classReminders ?? this.classReminders,
         minutesBefore: minutesBefore ?? this.minutesBefore,
         examReminders: examReminders ?? this.examReminders,
         askedPermission: askedPermission ?? this.askedPermission,
+        notifGroupId: notifGroupId ?? this.notifGroupId,
       );
 }
 
@@ -48,6 +52,7 @@ class SettingsService extends ChangeNotifier {
       minutesBefore: m.clamp(minMinutes, maxMinutes),
       examReminders: p.getBool('examReminders') ?? true,
       askedPermission: p.getBool('askedPermission') ?? false,
+      notifGroupId: p.getString('notifGroupId') ?? '',
     );
   }
 
@@ -60,5 +65,6 @@ class SettingsService extends ChangeNotifier {
     await p.setInt('minutesBefore', s.minutesBefore);
     await p.setBool('examReminders', s.examReminders);
     await p.setBool('askedPermission', s.askedPermission);
+    await p.setString('notifGroupId', s.notifGroupId);
   }
 }

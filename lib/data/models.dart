@@ -19,6 +19,11 @@ class Session {
   });
 
   double get length => end - start;
+
+  /// جلسات یک‌ساعته در این برنامه برگزار نمی‌شن (قاعدهٔ کتبی کاربر)؛
+  /// خاکستری می‌شن، اعلان ندارن و در «کلاس بعدی» هم ظاهر نمی‌شن.
+  bool get isOneHour => (length - 1.0).abs() < 0.001;
+
   bool overlaps(Session o) => o.day == day && start < o.end && o.start < end;
 
   Session copyWith({int? day, double? start, double? end, String? room, String? type}) => Session(

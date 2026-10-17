@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils.dart';
+import '../services/settings_service.dart';
 import 'default_schedule.dart';
 import 'models.dart';
 
@@ -309,7 +310,9 @@ class ScheduleStore extends ChangeNotifier {
     final h = hourOf(now);
     for (var k = 0; k < 7; k++) {
       final day = (today + k) % 7;
-      final list = sessionsOfGroup(group).where((s) => s.session.day == day).toList();
+      // جلسات تک‌ساعته برگزار نمی‌شن → از «کلاس بعدی» هم حذف
+      final list =
+          sessionsOfGroup(group).where((s) => s.session.day == day && !s.session.isOneHour).toList();
       list.sort((a, b) => a.session.start.compareTo(b.session.start));
       final visible = list.where((s) => k > 0 || s.session.end > h).toList();
       if (visible.isNotEmpty) {
@@ -334,13 +337,23 @@ class ScheduleStore extends ChangeNotifier {
     return list;
   }
 
+  /// گروهی که اعلان‌ها به برنامهٔ اون می‌رفته — انتخاب کاربر در تنظیمات.
+  /// اگر هنوز انتخاب نشده یا گروهش پاک شده، گروه فعال.
+  CourseGroup groupForNotifications() {
+    final want = SettingsService.instance.settings.notifGroupId;
+    for (final g in _groups) {
+      if (g.id == want) return g;
+    }
+    return activeGroup;
+  }
+
   int get totalUnits => activeGroup.totalUnits;
 
   double get weeklyHours => allSessions.fold(0.0, (s, r) => s + r.session.length);
 
-  /// تداخل کلاس‌ها
+  /// تداخل کلاس‌ها (جلسات تک‌ساعته برگزار نمی‌شن، پس حساب نمی‌شن)
   List<Conflict> conflicts() {
-    final all = allSessions;
+    final all = allSessions.where((r) => !r.session.isOneHour).toList();
     final out = <Conflict>[];
     for (var i = 0; i < all.length; i++) {
       for (var j = i + 1; j < all.length; j++) {
