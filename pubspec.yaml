@@ -1,7 +1,7 @@
 name: course_plan
 description: "برنامه درسی · دانشگاه فرهنگیان"
 publish_to: 'none'
-version: 0.0.3+3
+version: 0.0.4+4
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
@@ -14,6 +14,7 @@ dependencies:
   flutter_local_notifications: ^19.4.0
   timezone: ^0.10.1
   shared_preferences: ^2.3.2
+  file_picker: ^8.3.7
 
 dev_dependencies:
   flutter_test:

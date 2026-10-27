@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -48,29 +52,99 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
     if (mounted) toast(context, 'پشتیبان «${_store.activeGroup.name}» کپی شد ✦');
   }
 
+  /// ذخیرهٔ پشتیبان کامل به‌صورت فایل JSON (پنجرهٔ ذخیرهٔ سیستم‌عامل).
+  Future<void> _saveToFile() async {
+    final contents = _store.exportJson(pretty: true);
+    final name = 'course_plan_backup.json';
+    try {
+      final path = await FilePicker.platform.saveFile(
+        fileName: name,
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (path == null) return; // کاربر انصراف داد
+      // روی اندروید filepath برگردونده می‌شه و خودمون می‌نویسیم؛
+      // (پارامتر bytes فقط در وبه پشتیبانی می‌شه).
+      await File(path).writeAsString(contents, flush: true);
+      if (!mounted) return;
+      toast(context, 'فایل پشتیبان ذخیره شد ✦');
+    } catch (_) {
+      if (mounted) toast(context, 'ذخیرهٔ فایل نشد؛ از «کپی پشتیبان» استفاده کن');
+    }
+  }
+
+  /// خواندن متن JSON از یک فایل انتخاب‌شدهٔ کاربر.
+  Future<String?> _pickJsonFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json', 'txt'],
+      withData: true,
+    );
+    final file = result?.files.single;
+    if (file == null) return null;
+    String raw;
+    if (file.bytes != null) {
+      raw = utf8.decode(file.bytes!, allowMalformed: true);
+    } else if (file.path != null) {
+      raw = await File(file.path!).readAsString();
+    } else {
+      return null;
+    }
+    // BOM اگر از ویندوز آمده باشه، JSON پارسر رو می‌شکنه
+    return raw.replaceFirst('\uFEFF', '').trim();
+  }
+
   Future<void> _import() async {
     final ctrl = TextEditingController();
+    bool loadingFile = false;
     final text = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('بازگردانی از نسخهٔ پشتیبان'),
-        content: TextField(
-          controller: ctrl,
-          maxLines: 8,
-          decoration: const InputDecoration(
-            hintText: 'متن JSON رو اینجا بچسبون. برنامهٔ فعلی جایگزین می‌شه.',
-            border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('بازگردانی از نسخهٔ پشتیبان'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: ctrl,
+                maxLines: 8,
+                decoration: const InputDecoration(
+                  hintText: 'متن JSON رو اینجا بچسبون. برنامهٔ فعلی جایگزین می‌شه.',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: loadingFile
+                    ? null
+                    : () async {
+                        setLocal(() => loadingFile = true);
+                        try {
+                          final t = await _pickJsonFile();
+                          if (t != null) ctrl.text = t;
+                        } catch (_) {
+                          toast(ctx, 'خوندن فایل ممکن نشد');
+                        }
+                        setLocal(() => loadingFile = false);
+                      },
+                icon: loadingFile
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.file_open_outlined, size: 18),
+                label: const Text('انتخاب فایل JSON'),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
-          Builder(
-            builder: (c2) => FilledButton(
-              onPressed: () => Navigator.pop(c2, ctrl.text),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text),
               child: const Text('بازگردانی'),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
     ctrl.dispose();
@@ -79,6 +153,8 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
       final n = await _store.importJson(text);
       await NotificationService.instance.reschedule();
       if (mounted) toast(context, '${fa(n)} درس بازگردانی شد ✦');
+    } on FormatException catch (e) {
+      if (mounted) toast(context, e.message);
     } catch (_) {
       if (mounted) toast(context, 'متن وارد شده معتبر نیست');
     }
@@ -132,6 +208,8 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
                   _copyActiveGroup();
                 case 'import':
                   _import();
+                case 'saveFile':
+                  _saveToFile();
                 case 'reset':
                   _reset();
               }
@@ -139,7 +217,8 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'copy', child: Text('کپی پشتیبان همهٔ گروه‌ها')),
               PopupMenuItem(value: 'copyGroup', child: Text('کپی پشتیبان گروه فعال')),
-              PopupMenuItem(value: 'import', child: Text('بازگردانی از متن')),
+              PopupMenuItem(value: 'saveFile', child: Text('ذخیرهٔ فایل پشتیبان')),
+              PopupMenuItem(value: 'import', child: Text('بازگردانی از متن/فایل')),
               PopupMenuItem(value: 'reset', child: Text('بازگردانی همهٔ گروه‌ها')),
             ],
           ),

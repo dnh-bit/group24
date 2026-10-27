@@ -252,13 +252,15 @@ class ScheduleStore extends ChangeNotifier {
   /// متن JSON رو جایگزین برنامهٔ فعلی می‌کنه. تعداد درس‌ها رو برمی‌گردونه.
   ///
   /// هم پشتیبان کامل (همهٔ گروه‌ها) و هم فایل تک‌گروهی و هم فرمت قدیمی
-  /// نسخهٔ ۰.۰.۱ پذیرفته می‌شه.
+  /// نسخهٔ ۰.۰.۱ پذیرفته می‌شه. قبل از جایگزینی همه‌چیز اعتبارسنجی می‌شه تا
+  /// فایل نیم‌باطل، نیمهٔ درست برنامه رو نابود نکنه.
   Future<int> importJson(String text) async {
-    final data = jsonDecode(text.trim());
+    final data = jsonDecode(text.trim().replaceFirst('\uFEFF', '')); // BOM ویندوزی نادیده گرفته می‌شه
 
     // فرمت جدید: همهٔ گروه‌ها
     if (data is Map && data['groups'] is List) {
       final groups = _decodeGroups(text);
+      _validateGroups(groups);
       if (groups.isEmpty) throw const FormatException('هیچ گروهی پیدا نشد');
       _groups = groups;
       final wanted = data['activeGroupId']?.toString();
@@ -269,13 +271,49 @@ class ScheduleStore extends ChangeNotifier {
 
     // تک‌گروه یا فرمت قدیمی
     final list = _decodeCourses(text);
+    _validateCourses(list, 'درس');
     if (list.isEmpty) throw const FormatException('هیچ درسی پیدا نشد');
     await _setCourses(list);
     return list.length;
   }
 
+  void _validateGroups(List<CourseGroup> groups) {
+    if (groups.isEmpty) throw const FormatException('هیچ گروهی پیدا نشد');
+    for (final g in groups) {
+      if (g.name.trim().isEmpty) {
+        throw const FormatException('یکی از گروه‌ها بدون نام است');
+      }
+      _validateCourses(g.courses, g.name);
+    }
+  }
+
+  void _validateCourses(List<Course> courses, String scope) {
+    final seenIds = <int>{};
+    for (final c in courses) {
+      if (c.name.trim().isEmpty) {
+        throw FormatException('در «$scope» درسی بدون نام هست');
+      }
+      if (!seenIds.add(c.id)) {
+        throw FormatException('در «$scope» شناسهٔ تکراری داره (id ${c.id})');
+      }
+      if (c.units < 0 || c.units > 30) {
+        throw FormatException('در «$scope» تعداد واحد درس «${c.name}» نامعتبره');
+      }
+      for (final s in c.sessions) {
+        if (s.day < 0 || s.day > 6) {
+          throw FormatException(
+              'در «$scope» جلسه‌ای از درس «${c.name}» روز معتبری نداره (روز ${s.day})');
+        }
+        if (s.start < 0 || s.start > 24 || s.end <= s.start || s.end > 24) {
+          throw FormatException(
+              'در «$scope» ساعت جلسهٔ درس «${c.name}» (${kDayNames[s.day]}) نامعتبره');
+        }
+      }
+    }
+  }
+
   List<Course> _decodeCourses(String raw) {
-    final data = jsonDecode(raw);
+    final data = jsonDecode(raw.trim().replaceFirst('\uFEFF', ''));
     dynamic list = data is Map ? data['courses'] : data;
     if (list == null && data is Map && data['group'] is Map) {
       list = (data['group'] as Map)['courses'];
@@ -285,7 +323,7 @@ class ScheduleStore extends ChangeNotifier {
   }
 
   List<CourseGroup> _decodeGroups(String raw) {
-    final data = jsonDecode(raw);
+    final data = jsonDecode(raw.trim().replaceFirst('\uFEFF', ''));
     if (data is! Map || data['groups'] is! List) {
       throw const FormatException('فرمت نامعتبر');
     }
