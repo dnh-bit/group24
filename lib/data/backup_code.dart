@@ -45,7 +45,8 @@ bool isCompactPlanText(String raw) {
   for (final line in raw.trim().split('\n')) {
     final t = line.trim();
     if (t.isEmpty || t.startsWith('```')) continue; // بلوک کد چت‌بات‌ها
-    return _compactHeadRe.hasMatch(t) || _compactCourseRe.hasMatch(t);
+    if (_compactHeadRe.hasMatch(t) || _compactCourseRe.hasMatch(t)) return true;
+    // حاشیهٔ چت‌بات («خب اینم برنامه:» و…) — تا چند خط اول دنبال سرنشین می‌گردیم
   }
   return false;
 }
