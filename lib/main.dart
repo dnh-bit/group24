@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/schedule_store.dart';
@@ -10,6 +11,17 @@ import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // نوار وضعیت و نوار ناوبری پایین سیستم هم رنگ پس‌زمینهٔ اپ بشن (نه مشکی)
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    systemNavigationBarColor: AppColors.paper,
+    systemNavigationBarDividerColor: AppColors.line,
+    systemNavigationBarIconBrightness: Brightness.dark,
+  ));
+  // اندروید ۱۵ و بالاتر: محتوا تا زیر نوارهای سیستم کشیده می‌شه تا رنگ پس‌زمینهٔ اپ دیده بشه
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await SettingsService.instance.load();
   await ScheduleStore.instance.load();
   await NotificationService.instance.init();
@@ -83,6 +95,17 @@ class _Group24AppState extends State<Group24App> {
         GlobalCupertinoLocalizations.delegate,
       ],
       home: const HomeScreen(),
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: AppColors.paper,
+          systemNavigationBarDividerColor: AppColors.line,
+          systemNavigationBarIconBrightness: Brightness.dark,
+        ),
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }

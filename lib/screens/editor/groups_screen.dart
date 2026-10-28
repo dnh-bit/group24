@@ -32,64 +32,78 @@ class _GroupsScreenState extends State<GroupsScreen> {
   Future<void> _addGroupFlow() async {
     final choice = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true, // ارتفاع آزاد تا همهٔ گزینه‌ها جا بشن
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Text('گروه جدید از کجا بیاد؟',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  'هر گروه یه برنامهٔ مستقله؛ بعد از ساخته شدن، گروه فعال می‌شه.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 12.5),
+      builder: (ctx) => ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.86),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            0,
+            0,
+            0,
+            // فاصله برای نوار ناوبری سیستم + کیبورد آینده
+            MediaQuery.of(ctx).padding.bottom + 16 + MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 8),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text('گروه جدید از کجا بیاد؟',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            _SheetTile(
-              icon: Icons.edit_note_rounded,
-              title: 'شروع از صفر',
-              subtitle: 'گروه خالی؛ درس‌ها رو خودت توی ویرایشگر اضافه می‌کنی',
-              onTap: () => Navigator.pop(ctx, 'empty'),
-            ),
-            _SheetTile(
-              icon: Icons.copy_rounded,
-              title: 'کپی درس‌های گروه فعال',
-              subtitle: 'همهٔ درس‌های «${_store.activeGroup.name}» کپی می‌شن',
-              onTap: () => Navigator.pop(ctx, 'copy'),
-            ),
-            _SheetTile(
-              icon: Icons.file_open_outlined,
-              title: 'از فایل پشتیبان یا خروجی چت‌بات',
-              subtitle: 'انتخاب فایل .json از حافظهٔ گوشی',
-              onTap: () => Navigator.pop(ctx, 'file'),
-            ),
-            _SheetTile(
-              icon: Icons.content_paste_rounded,
-              title: 'از متن چسبانده‌شده',
-              subtitle: 'متن JSON رو مستقیم می‌چسبونی',
-              onTap: () => Navigator.pop(ctx, 'text'),
-            ),
-            _SheetTile(
-              icon: Icons.auto_awesome_rounded,
-              title: 'با دستیار هوشمند',
-              subtitle: 'پرامپت آماده بگیر، به چت‌بات بده، خروجی رو بیار',
-              onTap: () => Navigator.pop(ctx, 'ai'),
-            ),
-            const SizedBox(height: 8),
-          ],
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    'هر گروه یه برنامهٔ مستقله؛ بعد از ساخته شدن، گروه فعال می‌شه.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _SheetTile(
+                icon: Icons.edit_note_rounded,
+                title: 'شروع از صفر',
+                subtitle: 'گروه خالی؛ درس‌ها رو خودت توی ویرایشگر اضافه می‌کنی',
+                onTap: () => Navigator.pop(ctx, 'empty'),
+              ),
+              _SheetTile(
+                icon: Icons.copy_rounded,
+                title: 'کپی درس‌های گروه فعال',
+                subtitle: 'همهٔ درس‌های «${_store.activeGroup.name}» کپی می‌شن',
+                onTap: () => Navigator.pop(ctx, 'copy'),
+              ),
+              _SheetTile(
+                icon: Icons.file_open_outlined,
+                title: 'از فایل پشتیبان یا خروجی چت‌بات',
+                subtitle: 'انتخاب فایل .json از حافظهٔ گوشی',
+                onTap: () => Navigator.pop(ctx, 'file'),
+              ),
+              _SheetTile(
+                icon: Icons.content_paste_rounded,
+                title: 'از متن چسبانده‌شده',
+                subtitle: 'متن JSON یا کد CP2 رو مستقیم می‌چسبونی',
+                onTap: () => Navigator.pop(ctx, 'text'),
+              ),
+              _SheetTile(
+                icon: Icons.auto_awesome_rounded,
+                title: 'با دستیار هوشمند',
+                subtitle: 'پرامپت آماده بگیر، به چت‌بات بده، خروجی رو بیار',
+                onTap: () => Navigator.pop(ctx, 'ai'),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );

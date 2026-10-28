@@ -91,40 +91,42 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'سلام ✦',
-                              style: TextStyle(
+                            Text(
+                              'برنامهٔ درسی',
+                              style: const TextStyle(
                                 fontFamily: kTitleFont,
-                                fontSize: 40,
+                                fontSize: 34,
                                 color: AppColors.saffron,
-                                height: 1.1,
+                                height: 1.15,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
                             Text(
-                              isEmptyMode ? 'برنامه درسی' : 'برنامه درسی · دانشگاه فرهنگیان',
+                              isEmptyMode
+                                  ? 'برنامهٔ هفتگی و امتحان‌ها · کاملاً آفلاین'
+                                  : 'دانشگاه فرهنگیان · نیم‌سال اول ۱۴۰۵–۱۴۰۶',
                               style: const TextStyle(
                                 color: AppColors.muted,
                                 fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                                fontSize: 12.5,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      IconButton.filledTonal(
+                      IconButton.outlined(
                         tooltip: 'تنظیمات',
                         style: IconButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: AppColors.olive,
-                          elevation: 1,
-                          padding: const EdgeInsets.all(12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          foregroundColor: AppColors.saffron,
+                          side: const BorderSide(color: AppColors.saffron, width: 1.6),
+                          padding: const EdgeInsets.all(13),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                         ),
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const SettingsScreen()),
                         ),
-                        icon: const Icon(Icons.settings_rounded, size: 24),
+                        icon: const Icon(Icons.settings_rounded, size: 30),
                       ),
                     ],
                   ),
@@ -132,9 +134,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (isEmptyMode) ...[
                     // نسخهٔ خالی: هیچ گروهی نیست — دعوت به ساختن گروه
                     _MainOption(
-                      title: 'افزودن گروه',
-                      subtitle: 'اولین گروه درسی‌ت رو بساز — از صفر، از فایل پشتیبان، '
-                          'از متن، یا با دستیار هوشمند. بعدش همین‌جا کارت برنامه‌ت میاد.',
+                      title: 'افزودن گروه درسی',
+                      subtitle: 'هنوز هیچ گروهی نساختی.\n'
+                          'از صفر بساز، فایل پشتیبان رو وارد کن، یا برنامه‌ت رو با دستیار هوشمند از PDF/عکس انتخاب واحد بگیر — '
+                          'کارت برنامه‌ت همین‌جا ظاهر می‌شه.',
+                      showBadge: false,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const GroupsScreen()),
                       ),
@@ -186,12 +190,14 @@ class _MainOption extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onOpen;
   final bool active;
+  final bool showBadge;
   const _MainOption({
     required this.title,
     required this.subtitle,
     required this.onTap,
     this.onOpen,
     this.active = true,
+    this.showBadge = true,
   });
 
   @override
@@ -251,7 +257,7 @@ class _MainOption extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (active) ...[
+                            if (active && showBadge) ...[
                               Container(
                                 margin: const EdgeInsets.only(bottom: 6),
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
