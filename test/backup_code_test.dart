@@ -4,12 +4,21 @@ import 'package:course_plan/data/schedule_store.dart';
 
 void main() {
   test('کد کوتاه پشتیبان رفت‌وبرگشت دارد', () {
-    const json = '{"app":"course_plan","v":2,"groups":[{"id":"g1","name":"برنامهٔ تست ۲۴","courses":[]}]}';
-    final code = encodeBackupCode(json);
+    // نمونهٔ واقع‌گرایانه: پشتیبان کامل با چند درس (جیسون‌های چندحرفی است)
+    final courses = List.generate(8, (i) {
+      return '{"id":"c${i + 1}","name":"درس آزمایشی شماره ${i + 1} برای پشتیبان کامل",'
+          '"short":"درس ${i + 1}","prof":"استاد ${i + 1}","type":"نظری","units":2,'
+          '"sessions":[{"day":${i % 7},"start":8.0,"end":10.0,"room":"کلاس ${i + 1}"}]}';
+    }).join(',');
+    const json =
+        '{"app":"course_plan","v":2,"groups":[{"id":"g1","name":"برنامهٔ تست ۲۴",'
+        '"courses":[' '$courses_PLACEHOLDER' ']}]}';
+    final realJson = json.replaceFirst('courses_PLACEHOLDER', courses);
+    final code = encodeBackupCode(realJson);
     expect(code.startsWith('CP2:'), isTrue);
-    // کوتاه‌تر از JSON مرتب است
-    expect(code.length, lessThan(json.length + 20));
-    expect(tryDecodeBackupCode(code), json);
+    // برای پشتیبان واقعی (چند درس) کد کوتاه‌تر از خود JSON است
+    expect(code.length, lessThan(realJson.length));
+    expect(tryDecodeBackupCode(code), realJson);
   });
 
   test('کد کوتاه با فاصله و خطِ شکستهٔ چت هم باز می‌شود', () {
