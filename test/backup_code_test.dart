@@ -4,16 +4,15 @@ import 'package:course_plan/data/schedule_store.dart';
 
 void main() {
   test('کد کوتاه پشتیبان رفت‌وبرگشت دارد', () {
-    // نمونهٔ واقع‌گرایانه: پشتیبان کامل با چند درس (جیسون‌های چندحرفی است)
+    // نمونهٔ واقع‌گرایانه: پشتیبان کامل با چند درس
     final courses = List.generate(8, (i) {
       return '{"id":"c${i + 1}","name":"درس آزمایشی شماره ${i + 1} برای پشتیبان کامل",'
           '"short":"درس ${i + 1}","prof":"استاد ${i + 1}","type":"نظری","units":2,'
           '"sessions":[{"day":${i % 7},"start":8.0,"end":10.0,"room":"کلاس ${i + 1}"}]}';
     }).join(',');
-    const json =
+    final realJson =
         '{"app":"course_plan","v":2,"groups":[{"id":"g1","name":"برنامهٔ تست ۲۴",'
-        '"courses":[' '$courses_PLACEHOLDER' ']}]}';
-    final realJson = json.replaceFirst('courses_PLACEHOLDER', courses);
+        '"courses":[$courses]}]}';
     final code = encodeBackupCode(realJson);
     expect(code.startsWith('CP2:'), isTrue);
     // برای پشتیبان واقعی (چند درس) کد کوتاه‌تر از خود JSON است
