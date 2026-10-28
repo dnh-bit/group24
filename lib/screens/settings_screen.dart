@@ -80,6 +80,11 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     await _save(_svc.settings.copyWith(examReminders: v));
   }
 
+  Future<void> _toggleCancelOneHour(bool v) async {
+    await _save(_svc.settings.copyWith(cancelOneHourClasses: v));
+    _toast(v ? 'کلاس‌های تک‌ساعته لغو شدند (برگزار نمی‌شوند)' : 'کلاس‌های تک‌ساعته فعال شدند (برگزار می‌شوند)');
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = _svc.settings;
@@ -292,6 +297,21 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             ],
           ),
           const SizedBox(height: 24),
+          const _SectionTitle('کلاس‌ها'),
+          _Card(
+            children: [
+              SwitchListTile(
+                value: s.cancelOneHourClasses,
+                onChanged: _toggleCancelOneHour,
+                secondary: const Icon(Icons.timer_off_outlined, color: AppColors.saffron),
+                title: const Text('لغو کلاس‌های تک‌ساعته', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: const Text(
+                  'کلاس‌های یک‌ساعته برگزار نشوند و از جدول، یادآوری‌ها و تداخل‌ها حذف شوند (ویژهٔ دانشگاه فرهنگیان)',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
           const _SectionTitle('درباره'),
           _Card(
             children: [
@@ -306,6 +326,12 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                   '• کاملاً آفلاین — هیچ اینترنتی، هیچ جمع‌آوری داده‌ای.',
                 ),
                 isThreeLine: false,
+              ),
+              const Divider(height: 1, indent: 56),
+              const ListTile(
+                leading: Icon(Icons.person_outline_rounded, color: AppColors.saffron),
+                title: Text('سازنده و توسعه‌دهنده', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text('علیرضا عودی\nAlirezaoudi@cfu.ac.ir'),
               ),
             ],
           ),

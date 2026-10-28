@@ -79,21 +79,58 @@ class _HomeScreenState extends State<HomeScreen> {
         return Scaffold(
           body: SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'سلام ✦',
-                    style: TextStyle(fontFamily: kTitleFont, fontSize: 40, color: AppColors.saffron, height: 1.1),
+                  // نوار بالای صفحه: عنوان سمت راست، دکمهٔ تنظیمات بالا سمت چپ
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'سلام ✦',
+                              style: TextStyle(
+                                fontFamily: kTitleFont,
+                                fontSize: 40,
+                                color: AppColors.saffron,
+                                height: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isEmptyMode ? 'برنامه درسی' : 'برنامه درسی · دانشگاه فرهنگیان',
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton.filledTonal(
+                        tooltip: 'تنظیمات',
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppColors.olive,
+                          elevation: 1,
+                          padding: const EdgeInsets.all(12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        ),
+                        icon: const Icon(Icons.settings_rounded, size: 24),
+                      ),
+                    ],
                   ),
-                  Text(
-                    isEmptyMode ? 'برنامه درسی' : 'برنامه درسی · دانشگاه فرهنگیان',
-                    style: const TextStyle(color: AppColors.muted, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 20),
                   if (isEmptyMode) ...[
-                    // نسخهٔ خالی: هیچ گروهی نیست — فقط دعوت به ساختن گروه
+                    // نسخهٔ خالی: هیچ گروهی نیست — دعوت به ساختن گروه
                     _MainOption(
                       title: 'افزودن گروه',
                       subtitle: 'اولین گروه درسی‌ت رو بساز — از صفر، از فایل پشتیبان، '
@@ -105,47 +142,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   ] else ...[
                     // برای هر گروه درسی یک کارت: فعال = نارنجی، غیرفعال = خاکستری
                     ...groupCards,
-                    // مدیریت گروه‌ها — دکمهٔ واضح زیر کارت‌ها
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.olive,
-                              side: const BorderSide(color: AppColors.olive, width: 1.4),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                            ),
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const GroupsScreen()),
-                            ),
-                            icon: const Icon(Icons.tune_rounded),
-                            label: const Text('مدیریت گروه‌ها',
-                                style: TextStyle(fontWeight: FontWeight.w800)),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        // تنظیمات (اعلان‌ها و…) — دسترسی کوچک کنار دکمهٔ مدیریت
-                        IconButton.outlined(
-                          tooltip: 'تنظیمات',
-                          style: IconButton.styleFrom(
-                            foregroundColor: AppColors.olive,
-                            side: const BorderSide(color: AppColors.olive, width: 1.4),
-                          ),
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                          ),
-                          icon: const Icon(Icons.settings_rounded),
-                        ),
-                      ],
+                    const SizedBox(height: 4),
+                    // مدیریت گروه‌ها — دکمهٔ برجسته و زیبا زیر کارت‌ها
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.olive,
+                        backgroundColor: Colors.white,
+                        side: const BorderSide(color: AppColors.olive, width: 1.5),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const GroupsScreen()),
+                      ),
+                      icon: const Icon(Icons.tune_rounded),
+                      label: const Text(
+                        'مدیریت گروه‌ها',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                      ),
                     ),
                   ],
-                  if (!isEmptyMode)
-                    Text(
+                  if (!isEmptyMode) ...[
+                    const SizedBox(height: 18),
+                    const Text(
                       'نیم‌سال اول ۱۴۰۵–۱۴۰۶',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                      style: TextStyle(color: AppColors.muted, fontSize: 13, fontWeight: FontWeight.w500),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -172,7 +196,7 @@ class _MainOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // فعال = نارنجی پویا؛ غیرفعال = خاکستری ساکن
+    // فعال = نارنجی پویا؛ غیرفعال = خاکستری ملایم و شکیل
     final gradient = active
         ? const LinearGradient(
             begin: Alignment.topRight,
@@ -184,6 +208,10 @@ class _MainOption extends StatelessWidget {
             end: Alignment.bottomLeft,
             colors: [Color(0xFFB9BEB4), Color(0xFF9AA096), Color(0xFF8B9186)],
           );
+    // رنگ سوراخ وسط ستاره متناسب با رنگ پس‌زمینه کارت تا دایره نارنجی روی کارت خاکستری نیفتد
+    final starHoleColor = active ? const Color(0xFFFF7A0D) : const Color(0xFF9AA096);
+    final arrowIconColor = active ? AppColors.saffron : const Color(0xFF757B71);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -195,7 +223,7 @@ class _MainOption extends StatelessWidget {
             gradient: gradient,
             boxShadow: [
               BoxShadow(
-                color: active ? AppColors.saffron.withAlpha(90) : Colors.black26,
+                color: active ? AppColors.saffron.withAlpha(90) : Colors.black12,
                 blurRadius: active ? 30 : 12,
                 offset: Offset(0, active ? 14 : 6),
               ),
@@ -204,52 +232,79 @@ class _MainOption extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
             child: Stack(
-            children: [
-              const PositionedDirectional(
-                start: -30,
-                bottom: -40,
-                child: SpinningStar(size: 150, color: Color(0x33FFFFFF), hole: Color(0xFFFF7A0D)),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontFamily: kTitleFont,
-                              fontSize: 36,
-                              color: Colors.white,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            subtitle,
-                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500, height: 1.7),
-                          ),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: onOpen,
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                        child: const Icon(Icons.arrow_forward_rounded, color: AppColors.saffron),
-                      ),
-                    ),
-                  ],
+              children: [
+                PositionedDirectional(
+                  start: -30,
+                  bottom: -40,
+                  child: SpinningStar(
+                    size: 150,
+                    color: const Color(0x33FFFFFF),
+                    hole: starHoleColor,
+                  ),
                 ),
-              ),
-            ],
-          ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (active) ...[
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withAlpha(50),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  'گروه فعال',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontFamily: kTitleFont,
+                                fontSize: 36,
+                                color: Colors.white,
+                                height: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              subtitle,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                height: 1.7,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: onOpen,
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                          child: Icon(Icons.arrow_forward_rounded, color: arrowIconColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

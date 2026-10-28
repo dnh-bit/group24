@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+const bool kEmptyDefault = bool.fromEnvironment('EMPTY_DEFAULT');
+
 class AppSettings {
   final bool classReminders;
   final int minutesBefore; // ۱ تا ۱۵
   final bool examReminders;
   final bool askedPermission;
-  final String notifGroupId; // گروهی که اعلان‌ها به برنامهٔ اوش می‌رفته ('' = گروه فعال)
+  final String notifGroupId; // گروهی که اعلان‌ها به برنامهٔ اون می‌رفته ('' = گروه فعال)
+  final bool cancelOneHourClasses; // آیا کلاس‌های تک‌ساعته لغو/برگزار نشوند
 
   const AppSettings({
     this.classReminders = true,
@@ -14,6 +17,7 @@ class AppSettings {
     this.examReminders = true,
     this.askedPermission = false,
     this.notifGroupId = '',
+    this.cancelOneHourClasses = !kEmptyDefault,
   });
 
   AppSettings copyWith({
@@ -22,6 +26,7 @@ class AppSettings {
     bool? examReminders,
     bool? askedPermission,
     String? notifGroupId,
+    bool? cancelOneHourClasses,
   }) =>
       AppSettings(
         classReminders: classReminders ?? this.classReminders,
@@ -29,6 +34,7 @@ class AppSettings {
         examReminders: examReminders ?? this.examReminders,
         askedPermission: askedPermission ?? this.askedPermission,
         notifGroupId: notifGroupId ?? this.notifGroupId,
+        cancelOneHourClasses: cancelOneHourClasses ?? this.cancelOneHourClasses,
       );
 }
 
@@ -53,6 +59,7 @@ class SettingsService extends ChangeNotifier {
       examReminders: p.getBool('examReminders') ?? true,
       askedPermission: p.getBool('askedPermission') ?? false,
       notifGroupId: p.getString('notifGroupId') ?? '',
+      cancelOneHourClasses: p.getBool('cancelOneHourClasses') ?? !kEmptyDefault,
     );
   }
 
@@ -66,5 +73,6 @@ class SettingsService extends ChangeNotifier {
     await p.setBool('examReminders', s.examReminders);
     await p.setBool('askedPermission', s.askedPermission);
     await p.setString('notifGroupId', s.notifGroupId);
+    await p.setBool('cancelOneHourClasses', s.cancelOneHourClasses);
   }
 }

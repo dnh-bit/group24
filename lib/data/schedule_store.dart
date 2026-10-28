@@ -417,11 +417,13 @@ class ScheduleStore extends ChangeNotifier {
   NextClass? findNextFor(CourseGroup group, DateTime now) {
     final today = dayIndexOf(now);
     final h = hourOf(now);
+    final cancelOneHour = SettingsService.instance.settings.cancelOneHourClasses;
     for (var k = 0; k < 7; k++) {
       final day = (today + k) % 7;
-      // جلسات تک‌ساعته برگزار نمی‌شن → از «کلاس بعدی» هم حذف
-      final list =
-          sessionsOfGroup(group).where((s) => s.session.day == day && !s.session.isOneHour).toList();
+      // اگر لغو کلاس‌های تک‌ساعته فعال باشد، از «کلاس بعدی» حذف می‌شوند
+      final list = sessionsOfGroup(group)
+          .where((s) => s.session.day == day && !(cancelOneHour && s.session.isOneHour))
+          .toList();
       list.sort((a, b) => a.session.start.compareTo(b.session.start));
       final visible = list.where((s) => k > 0 || s.session.end > h).toList();
       if (visible.isNotEmpty) {
@@ -460,9 +462,10 @@ class ScheduleStore extends ChangeNotifier {
 
   double get weeklyHours => allSessions.fold(0.0, (s, r) => s + r.session.length);
 
-  /// تداخل کلاس‌ها (جلسات تک‌ساعته برگزار نمی‌شن، پس حساب نمی‌شن)
+  /// تداخل کلاس‌ها (اگر لغو کلاس‌های تک‌ساعته فعال باشد، حساب نمی‌شن)
   List<Conflict> conflicts() {
-    final all = allSessions.where((r) => !r.session.isOneHour).toList();
+    final cancelOneHour = SettingsService.instance.settings.cancelOneHourClasses;
+    final all = allSessions.where((r) => !(cancelOneHour && r.session.isOneHour)).toList();
     final out = <Conflict>[];
     for (var i = 0; i < all.length; i++) {
       for (var j = i + 1; j < all.length; j++) {

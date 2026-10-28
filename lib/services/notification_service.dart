@@ -152,8 +152,8 @@ class NotificationService {
         final c = ref.course;
         if (c.muted) continue;
         final se = ref.session;
-        // جلسات تک‌ساعته برگزار نمی‌شن → اعلان هم ندارن
-        if (se.isOneHour) continue;
+        // اگر لغو جلسات تک‌ساعته فعال باشد، اعلان هم ندارند
+        if (s.cancelOneHourClasses && se.isOneHour) continue;
         await _plugin.zonedSchedule(
           c.id * 20 + ref.index,
           '${fa(s.minutesBefore)} دقیقه تا کلاس ${c.shortName}',

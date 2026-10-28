@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/default_schedule.dart';
 import '../data/models.dart';
 import '../data/schedule_store.dart';
+import '../services/settings_service.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../widgets/star.dart';
@@ -406,7 +407,10 @@ class _DayList extends StatelessWidget {
         for (final ref in list)
           _SessionCard(
             refData: ref,
-            ongoing: isToday && !ref.session.isOneHour && ref.session.start <= hour && hour < ref.session.end,
+            ongoing: isToday &&
+                !(SettingsService.instance.settings.cancelOneHourClasses && ref.session.isOneHour) &&
+                ref.session.start <= hour &&
+                hour < ref.session.end,
             past: isToday && ref.session.end <= hour,
             onTap: () => onTap(ref.course),
           ),
@@ -426,7 +430,7 @@ class _SessionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = refData.course;
     final s = refData.session;
-    final cancelled = s.isOneHour; // تک‌ساعته‌ها برگزار نمی‌شن
+    final cancelled = SettingsService.instance.settings.cancelOneHourClasses && s.isOneHour;
     return Opacity(
       opacity: (past ? 0.45 : 1.0) * (cancelled ? 0.85 : 1.0),
       child: Padding(
@@ -705,7 +709,7 @@ class _WeekBlock extends StatelessWidget {
     final c = refData.course;
     final s = refData.session;
     final long = s.length >= 2;
-    final cancelled = s.isOneHour;
+    final cancelled = SettingsService.instance.settings.cancelOneHourClasses && s.isOneHour;
     return Material(
       color: cancelled ? const Color(0xFF9AA0A6) : c.color,
       borderRadius: BorderRadius.circular(12),
@@ -890,7 +894,11 @@ class _CourseSheet extends StatelessWidget {
                     Text('${fmtTime(s.start)} تا ${fmtTime(s.end)}'),
                     const SizedBox(width: 10),
                     Expanded(child: Text(s.room, overflow: TextOverflow.ellipsis)),
-                    _Tag(text: s.isOneHour ? 'برگزار نمی‌شود' : s.type),
+                    _Tag(
+                      text: (SettingsService.instance.settings.cancelOneHourClasses && s.isOneHour)
+                          ? 'برگزار نمی‌شود'
+                          : s.type,
+                    ),
                   ],
                 ),
               ),
