@@ -9,6 +9,7 @@ import '../theme.dart';
 import '../utils.dart';
 import '../widgets/star.dart';
 import 'editor/groups_screen.dart';
+import 'editor/widgets.dart' show toast;
 import 'schedule_screen.dart';
 import 'settings_screen.dart';
 
@@ -47,20 +48,30 @@ class _HomeScreenState extends State<HomeScreen> {
         final groupCards = <Widget>[];
         for (final g in store.groups) {
           final next = store.findNextFor(g, _now);
+          final isActive = g.id == store.activeGroupId;
           groupCards.add(_MainOption(
             title: g.name,
+            active: isActive,
             subtitle: next == null
                 ? (g.courses.isEmpty
-                    ? 'این گروه هنوز درسی نداره — از ویرایشگر اضافه کن'
+                    ? 'این گروه هنوز درسی نداره — از مدیریت گروه‌ها اضافه کن'
                     : 'برنامهٔ هفتگی و تاریخ امتحان‌ها')
                 : '${next.ongoing ? 'الان سر کلاسی' : 'کلاس بعدی'}: ${next.ref.course.shortName}\n'
                     '${next.whenLabel} · ${fmtTime(next.ref.session.start)} · ${next.ref.session.room}',
+            // ضربه روی گروهِ غیرفعال → فعال می‌شه؛ ضربه دوباره → صفحهٔ برنامه
             onTap: () {
-              store.selectGroup(g.id);
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ScheduleScreen()),
-              );
+              if (isActive) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ScheduleScreen()),
+                );
+              } else {
+                store.selectGroup(g.id);
+                toast(context, 'گروه فعال شد: ${g.name}');
+              }
             },
+            onOpen: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ScheduleScreen()),
+            ),
           ));
           groupCards.add(const SizedBox(height: 16));
         }
@@ -72,30 +83,9 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'سلام ✦',
-                          style: TextStyle(fontFamily: kTitleFont, fontSize: 40, color: AppColors.saffron, height: 1.1),
-                        ),
-                      ),
-                      IconButton.filledTonal(
-                        tooltip: 'گروه‌های درسی',
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const GroupsScreen()),
-                        ),
-                        icon: const Icon(Icons.groups_rounded),
-                      ),
-                      const SizedBox(width: 6),
-                      IconButton.filledTonal(
-                        tooltip: 'تنظیمات',
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                        ),
-                        icon: const Icon(Icons.settings_rounded),
-                      ),
-                    ],
+                  const Text(
+                    'سلام ✦',
+                    style: TextStyle(fontFamily: kTitleFont, fontSize: 40, color: AppColors.saffron, height: 1.1),
                   ),
                   Text(
                     isEmptyMode ? 'برنامه درسی' : 'برنامه درسی · دانشگاه فرهنگیان',
@@ -113,46 +103,42 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ] else ...[
-                    // ردیف چیپ‌های گروه — با ضربه، گروه فعال عوض می‌شه
-                    SizedBox(
-                      height: 38,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          for (final g in store.groups)
-                            Padding(
-                              padding: const EdgeInsetsDirectional.only(start: 8),
-                              child: ChoiceChip(
-                                selected: g.id == store.activeGroupId,
-                                label: Text(
-                                  g.name,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12.5,
-                                    color: g.id == store.activeGroupId ? Colors.white : null,
-                                  ),
-                                ),
-                                selectedColor: AppColors.saffron,
-                                showCheckmark: false,
-                                onSelected: (_) => store.selectGroup(g.id),
-                              ),
-                            ),
-                          Padding(
-                            padding: const EdgeInsetsDirectional.only(start: 8),
-                            child: ActionChip(
-                              avatar: const Icon(Icons.settings_suggest_rounded, size: 16),
-                              label: const Text('مدیریت', style: TextStyle(fontSize: 12.5)),
-                              onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const GroupsScreen()),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // برای هر گروه درسی یک کارت با برنامهٔ خودش
+                    // برای هر گروه درسی یک کارت: فعال = نارنجی، غیرفعال = خاکستری
                     ...groupCards,
+                    // مدیریت گروه‌ها — دکمهٔ واضح زیر کارت‌ها
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.olive,
+                              side: const BorderSide(color: AppColors.olive, width: 1.4),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                            ),
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const GroupsScreen()),
+                            ),
+                            icon: const Icon(Icons.tune_rounded),
+                            label: const Text('مدیریت گروه‌ها',
+                                style: TextStyle(fontWeight: FontWeight.w800)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // تنظیمات (اعلان‌ها و…) — دسترسی کوچک کنار دکمهٔ مدیریت
+                        IconButton.outlined(
+                          tooltip: 'تنظیمات',
+                          style: IconButton.styleFrom(
+                            foregroundColor: AppColors.olive,
+                            side: const BorderSide(color: AppColors.olive, width: 1.4),
+                          ),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                          ),
+                          icon: const Icon(Icons.settings_rounded),
+                        ),
+                      ],
+                    ),
                   ],
                   if (!isEmptyMode)
                     Text(
@@ -174,10 +160,30 @@ class _MainOption extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  const _MainOption({required this.title, required this.subtitle, required this.onTap});
+  final VoidCallback? onOpen;
+  final bool active;
+  const _MainOption({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.onOpen,
+    this.active = true,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // فعال = نارنجی پویا؛ غیرفعال = خاکستری ساکن
+    final gradient = active
+        ? const LinearGradient(
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+            colors: [Color(0xFFFF8A1F), AppColors.saffron, Color(0xFFE85D00)],
+          )
+        : const LinearGradient(
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+            colors: [Color(0xFFB9BEB4), Color(0xFF9AA096), Color(0xFF8B9186)],
+          );
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -186,13 +192,13 @@ class _MainOption extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
-            gradient: const LinearGradient(
-              begin: Alignment.topRight,
-              end: Alignment.bottomLeft,
-              colors: [Color(0xFFFF8A1F), AppColors.saffron, Color(0xFFE85D00)],
-            ),
+            gradient: gradient,
             boxShadow: [
-              BoxShadow(color: AppColors.saffron.withAlpha(90), blurRadius: 30, offset: const Offset(0, 14)),
+              BoxShadow(
+                color: active ? AppColors.saffron.withAlpha(90) : Colors.black26,
+                blurRadius: active ? 30 : 12,
+                offset: Offset(0, active ? 14 : 6),
+              ),
             ],
           ),
           child: ClipRRect(
@@ -230,11 +236,14 @@ class _MainOption extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      child: const Icon(Icons.arrow_forward_rounded, color: AppColors.saffron),
+                    GestureDetector(
+                      onTap: onOpen,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                        child: const Icon(Icons.arrow_forward_rounded, color: AppColors.saffron),
+                      ),
                     ),
                   ],
                 ),
