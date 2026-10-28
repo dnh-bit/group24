@@ -5,8 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils.dart';
 import '../services/settings_service.dart';
+import 'backup_code.dart';
 import 'default_schedule.dart';
 import 'models.dart';
+
+/// نسخهٔ «خالی»: با --dart-define=EMPTY_DEFAULT=true ساخته می‌شه؛
+/// بدون برنامه‌های پیش‌فرض گروه ۲۴ و ۲۵ — برای استفادهٔ همهٔ دانشگاه‌ها.
+const bool kEmptyDefault = bool.fromEnvironment('EMPTY_DEFAULT');
 
 /// منبع اصلی داده‌ها: گروه‌های درسی و درس‌هایشان روی گوشی ذخیره می‌شن و
 /// قابل ویرایش هستن.
@@ -27,10 +32,17 @@ class ScheduleStore extends ChangeNotifier {
   String _activeId = 'g1';
 
   /// برنامهٔ پیش‌فرض: گروه ۲۴ و گروه ۲۵ در تاییدیهٔ انتخاب واحد.
-  static List<CourseGroup> _defaultGroups() => [
-        CourseGroup(id: 'g1', name: kDefaultGroupName, courses: List.of(kDefaultCourses)),
-        CourseGroup(id: 'g2', name: kG25GroupName, courses: List.of(kG25Courses)),
-      ];
+  /// در نسخهٔ خالی (EMPTY_DEFAULT) هیچ گروهی از اول وجود نداره.
+  static List<CourseGroup> _defaultGroups() {
+    if (kEmptyDefault) return const [];
+    return [
+      CourseGroup(id: 'g1', name: kDefaultGroupName, courses: List.of(kDefaultCourses)),
+      CourseGroup(id: 'g2', name: kG25GroupName, courses: List.of(kG25Courses)),
+    ];
+  }
+
+  /// گروه مجازی وقتی هیچ گروهی وجود نداره — فقط برای اینکه UI نشکنه.
+  static const CourseGroup kNoGroup = CourseGroup(id: '', name: 'بدون گروه', courses: []);
 
   // ───────────── گروه‌ها ─────────────
 
@@ -40,6 +52,7 @@ class ScheduleStore extends ChangeNotifier {
     for (final g in _groups) {
       if (g.id == _activeId) return g;
     }
+    if (_groups.isEmpty) return kNoGroup;
     return _groups.first;
   }
 
@@ -255,7 +268,19 @@ class ScheduleStore extends ChangeNotifier {
   /// نسخهٔ ۰.۰.۱ پذیرفته می‌شه. قبل از جایگزینی همه‌چیز اعتبارسنجی می‌شه تا
   /// فایل نیم‌باطل، نیمهٔ درست برنامه رو نابود نکنه.
   Future<int> importJson(String text) async {
-    final data = jsonDecode(text.trim().replaceFirst('\uFEFF', '')); // BOM ویندوزی نادیده گرفته می‌شه
+    // کد کوتاه پشتیبان (CP2:) → JSON اصلی
+    final decoded = tryDecodeBackupCode(text);
+    if (decoded != null) text = decoded;
+
+    // فرمت خطی کوتاه (خروجی چت‌بات)
+    if (isCompactPlanText(text)) {
+      final p = parseCompactPlan(text);
+      _validateCourses(p.courses, p.name.isEmpty ? 'درس' : p.name);
+      await _setCourses(p.courses);
+      return p.courses.length;
+    }
+
+    final data = jsonDecode(extractJson(text)); // BOM ویندوزی و بلوک کد چت‌بات‌ها پاک می‌شه
 
     // فرمت جدید: همهٔ گروه‌ها
     if (data is Map && data['groups'] is List) {
@@ -313,7 +338,7 @@ class ScheduleStore extends ChangeNotifier {
   }
 
   List<Course> _decodeCourses(String raw) {
-    final data = jsonDecode(raw.trim().replaceFirst('\uFEFF', ''));
+    final data = jsonDecode(extractJson(raw));
     dynamic list = data is Map ? data['courses'] : data;
     if (list == null && data is Map && data['group'] is Map) {
       list = (data['group'] as Map)['courses'];
@@ -323,7 +348,7 @@ class ScheduleStore extends ChangeNotifier {
   }
 
   List<CourseGroup> _decodeGroups(String raw) {
-    final data = jsonDecode(raw.trim().replaceFirst('\uFEFF', ''));
+    final data = jsonDecode(extractJson(raw));
     if (data is! Map || data['groups'] is! List) {
       throw const FormatException('فرمت نامعتبر');
     }
@@ -331,6 +356,52 @@ class ScheduleStore extends ChangeNotifier {
       for (final g in (data['groups'] as List))
         CourseGroup.fromJson(Map<String, dynamic>.from(g as Map)),
     ];
+  }
+
+  /// خروجی هوش مصنوعی یا فایل تک‌گروهی را به‌عنوان «گروه جدید» اضافه می‌کند
+  /// و برنامهٔ فعلی را دست‌نخورده نگه می‌دارد. گروه تازه فعال می‌شود.
+  ///
+  /// [name] خالی باشد از نام فایل JSON (کلید name) یا پیش‌فرض استفاده می‌شود.
+  Future<CourseGroup> importAsNewGroup(String text, {String name = ''}) async {
+    final decoded = tryDecodeBackupCode(text);
+    if (decoded != null) text = decoded;
+
+    // فرمت خطی کوتاه (خروجی چت‌بات)
+    if (isCompactPlanText(text)) {
+      final p = parseCompactPlan(text);
+      _validateCourses(p.courses, p.name.isEmpty ? 'درس' : p.name);
+      final label = name.trim().isNotEmpty ? name.trim() : p.name;
+      final group = await addGroup(name: label);
+      await _setCourses(p.courses);
+      return group.copyWith(courses: p.courses);
+    }
+
+    final data = jsonDecode(extractJson(text));
+
+    List<Course> courses;
+    String suggested;
+    if (data is Map && data['groups'] is List) {
+      final groups = _decodeGroups(text);
+      _validateGroups(groups);
+      // پشتیبان کامل آمده: گروه اول را می‌گیریم (بقیه جداگانه وارد شوند)
+      courses = groups.first.courses;
+      suggested = groups.first.name;
+    } else if (data is Map && data['group'] is Map) {
+      final g = CourseGroup.fromJson(Map<String, dynamic>.from(data['group'] as Map));
+      _validateCourses(g.courses, g.name);
+      courses = g.courses;
+      suggested = g.name;
+    } else {
+      courses = _decodeCourses(text);
+      _validateCourses(courses, 'درس');
+      suggested = '';
+    }
+    if (courses.isEmpty) throw const FormatException('هیچ درسی پیدا نشد');
+
+    final label = name.trim().isNotEmpty ? name.trim() : suggested;
+    final group = await addGroup(name: label);
+    await _setCourses(courses);
+    return group.copyWith(courses: courses);
   }
 
   // ───────────── پرس‌وجوها (روی گروه فعال) ─────────────

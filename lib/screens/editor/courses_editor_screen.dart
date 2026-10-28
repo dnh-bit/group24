@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/models.dart';
+import '../../data/backup_code.dart';
 import '../../data/schedule_store.dart';
 import '../../services/notification_service.dart';
 import '../../theme.dart';
@@ -45,6 +46,36 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: _store.exportJson(pretty: true)));
     if (mounted) toast(context, 'پشتیبان همهٔ گروه‌ها کپی شد ✦');
+  }
+
+  /// کد کوتاه پشتیبان — gzip+base64؛ برای فرستادن در چت راحت است.
+  Future<void> _copyShortCode() async {
+    final code = encodeBackupCode(_store.exportJson());
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('کد کوتاه پشتیبان'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'این کد رو کپی کن و هرجا خواستی ذخیره یا بفرست. '
+              'بازگردانی‌اش همون‌جوریه: کد رو در «بازگردانی از متن/فایل» بچسبون.',
+              style: TextStyle(fontSize: 13, height: 1.6),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.olive.withAlpha(20),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: SelectableText(code, style: const TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _copyActiveGroup() async {
@@ -109,7 +140,7 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
                 controller: ctrl,
                 maxLines: 8,
                 decoration: const InputDecoration(
-                  hintText: 'متن JSON رو اینجا بچسبون. برنامهٔ فعلی جایگزین می‌شه.',
+                  hintText: 'متن JSON، کد کوتاه پشتیبان (CP2:…) یا خروجی چت‌بات رو بچسبون. برنامهٔ فعلی جایگزین می‌شه.',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -204,6 +235,8 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
               switch (v) {
                 case 'copy':
                   _copy();
+                case 'copyShort':
+                  _copyShortCode();
                 case 'copyGroup':
                   _copyActiveGroup();
                 case 'import':
@@ -215,7 +248,8 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
               }
             },
             itemBuilder: (_) => const [
-              PopupMenuItem(value: 'copy', child: Text('کپی پشتیبان همهٔ گروه‌ها')),
+              PopupMenuItem(value: 'copyShort', child: Text('کد کوتاه پشتیبان (برای چت)')),
+              PopupMenuItem(value: 'copy', child: Text('کپی پشتیبان همهٔ گروه‌ها (JSON)')),
               PopupMenuItem(value: 'copyGroup', child: Text('کپی پشتیبان گروه فعال')),
               PopupMenuItem(value: 'saveFile', child: Text('ذخیرهٔ فایل پشتیبان')),
               PopupMenuItem(value: 'import', child: Text('بازگردانی از متن/فایل')),

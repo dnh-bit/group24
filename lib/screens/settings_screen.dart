@@ -8,6 +8,7 @@ import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../theme.dart';
 import '../utils.dart';
+import '../ai_assistant_screen.dart';
 import 'editor/groups_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -262,11 +263,30 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                 title: const Text('مدیریت گروه‌ها', style: TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text(
                   'گروه فعال: «${ScheduleStore.instance.activeGroup.name}» · '
-                  '${fa(ScheduleStore.instance.groups.length)} گروه',
+                  '${fa(ScheduleStore.instance.groups.length)} گروه — '
+                  'انتخاب، افزودن، ویرایش و حذف گروه‌ها',
                 ),
                 trailing: const Icon(Icons.chevron_left_rounded),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const GroupsScreen()),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _Card(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.auto_awesome_rounded, color: AppColors.saffron),
+                title: const Text('دستیار هوشمند', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: const Text(
+                  'برنامهٔ دانشگاهت رو به چت‌بات (ChatGPT و…) بده تا JSON آماده بسازه؛ '
+                  'اینجا پرامپت آماده می‌گیری و خروجی رو داخل اپ وارد می‌کنی. '
+                  'اپ هیچ داده‌ای به هیچ سرویسی نمی‌فرسته.',
+                ),
+                trailing: const Icon(Icons.chevron_left_rounded),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
                 ),
               ),
             ],
@@ -277,14 +297,15 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             children: [
               ListTile(
                 leading: const Icon(Icons.info_outline_rounded),
-                title: const Text('برنامه درسی'),
-                subtitle: Text(
-                  '${fa(ScheduleStore.instance.groups.length)} گروه درسی · '
-                  'گروه فعال «${ScheduleStore.instance.activeGroup.name}»\n'
-                  '${fa(ScheduleStore.instance.courses.length)} درس · ${fa(ScheduleStore.instance.totalUnits)} واحد\n'
-                  'یادآوری‌ها به وقت تهران و کاملاً آفلاین کار می‌کنن.',
+                title: const Text('دربارهٔ برنامه درسی', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: const Text(
+                  'برنامهٔ هفتگی کلاس‌ها و تاریخ امتحان‌ها با یادآوری اعلان.\n'
+                  '• گروه‌ها: هر گروه یه برنامهٔ جداست؛ گروه فعال توی صفحهٔ اصلی و جدول نشون داده می‌شه.\n'
+                  '• اعلان‌ها فقط از گروهی می‌آد که بالای همین صفحه انتخاب کردی.\n'
+                  '• پشتیبان‌گیری و بازگردانی: توی «ویرایش برنامه»، منوی بالای صفحه.\n'
+                  '• کاملاً آفلاین — هیچ اینترنتی، هیچ جمع‌آوری داده‌ای.',
                 ),
-                isThreeLine: true,
+                isThreeLine: false,
               ),
             ],
           ),

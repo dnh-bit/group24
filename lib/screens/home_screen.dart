@@ -64,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ));
           groupCards.add(const SizedBox(height: 16));
         }
+        final isEmptyMode = store.groups.isEmpty;
         return Scaffold(
           body: SafeArea(
             child: SingleChildScrollView(
@@ -96,49 +97,69 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  const Text(
-                    'دانشگاه فرهنگیان · رشتهٔ امور تربیتی',
-                    style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w500),
+                  Text(
+                    isEmptyMode ? 'برنامه درسی' : 'برنامه درسی · دانشگاه فرهنگیان',
+                    style: const TextStyle(color: AppColors.muted, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
-                  // گروه فعال — با زدن روش، صفحهٔ گروه‌ها باز می‌شه
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(99),
+                  if (isEmptyMode) ...[
+                    // نسخهٔ خالی: هیچ گروهی نیست — فقط دعوت به ساختن گروه
+                    _MainOption(
+                      title: 'افزودن گروه',
+                      subtitle: 'اولین گروه درسی‌ت رو بساز — از صفر، از فایل پشتیبان، '
+                          'از متن، یا با دستیار هوشمند. بعدش همین‌جا کارت برنامه‌ت میاد.',
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const GroupsScreen()),
                       ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.bookmark_rounded, size: 16, color: AppColors.saffron),
-                            const SizedBox(width: 6),
-                            Text(
-                              store.activeGroup.name,
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    ),
+                  ] else ...[
+                    // ردیف چیپ‌های گروه — با ضربه، گروه فعال عوض می‌شه
+                    SizedBox(
+                      height: 38,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          for (final g in store.groups)
+                            Padding(
+                              padding: const EdgeInsetsDirectional.only(start: 8),
+                              child: ChoiceChip(
+                                selected: g.id == store.activeGroupId,
+                                label: Text(
+                                  g.name,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12.5,
+                                    color: g.id == store.activeGroupId ? Colors.white : null,
+                                  ),
+                                ),
+                                selectedColor: AppColors.saffron,
+                                showCheckmark: false,
+                                onSelected: (_) => store.selectGroup(g.id),
+                              ),
                             ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.expand_more_rounded, size: 16, color: AppColors.muted),
-                          ],
-                        ),
+                          Padding(
+                            padding: const EdgeInsetsDirectional.only(start: 8),
+                            child: ActionChip(
+                              avatar: const Icon(Icons.settings_suggest_rounded, size: 16),
+                              label: const Text('مدیریت', style: TextStyle(fontSize: 12.5)),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const GroupsScreen()),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  // برای هر گروه درسی یک کارت با برنامهٔ خودش
-                  ...groupCards,
-                  Text(
-                    'نیم‌سال اول ۱۴۰۵–۱۴۰۶',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.muted, fontSize: 13),
-                  ),
+                    const SizedBox(height: 12),
+                    // برای هر گروه درسی یک کارت با برنامهٔ خودش
+                    ...groupCards,
+                  ],
+                  if (!isEmptyMode)
+                    Text(
+                      'نیم‌سال اول ۱۴۰۵–۱۴۰۶',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                    ),
                 ],
               ),
             ),

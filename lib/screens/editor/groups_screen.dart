@@ -1,16 +1,22 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../data/models.dart';
+import '../../data/backup_code.dart';
 import '../../data/schedule_store.dart';
 import '../../services/notification_service.dart';
 import '../../theme.dart';
 import '../../utils.dart';
+import '../ai_assistant_screen.dart';
+import 'courses_editor_screen.dart';
 import 'widgets.dart';
 
-/// مدیریت گروه‌های درسی: افزودن، تغییر نام، انتخاب و حذف.
-///
-/// هر گروه برنامهٔ مستقل خودش را دارد؛ گروهی که انتخاب شود روی صفحهٔ اصلی،
-/// جدول هفتگی، امتحان‌ها و اعلان‌ها اثر می‌گذارد.
+/// مدیریت گروه‌های درسی: انتخاب گروه فعال، افزودن (از صفر / کپی / فایل /
+/// متن / دستیار هوشمند)، تغییر نام، ویرایش درس‌ها، پشتیبان و حذف.
 class GroupsScreen extends StatefulWidget {
   const GroupsScreen({super.key});
 
@@ -21,54 +27,205 @@ class GroupsScreen extends StatefulWidget {
 class _GroupsScreenState extends State<GroupsScreen> {
   final _store = ScheduleStore.instance;
 
-  Future<void> _addGroup() async {
-    final nameCtrl = TextEditingController();
-    var copy = false;
+  // ───────────── افزودن گروه ─────────────
 
-    final ok = await showDialog<bool>(
+  Future<void> _addGroupFlow() async {
+    final choice = await showModalBottomSheet<String>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          title: const Text('گروه درسی جدید'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'نام گروه',
-                  hintText: 'مثلاً گروه ۲۵ یا ترم دوم',
-                  border: OutlineInputBorder(),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text('گروه جدید از کجا بیاد؟',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  'هر گروه یه برنامهٔ مستقله؛ بعد از ساخته شدن، گروه فعال می‌شه.',
+                  style: TextStyle(color: AppColors.muted, fontSize: 12.5),
                 ),
               ),
-              const SizedBox(height: 8),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: copy,
-                onChanged: (v) => setLocal(() => copy = v ?? false),
-                title: const Text('درس‌های گروه فعلی کپی بشه'),
-                subtitle: const Text('به‌جای وارد کردن از صفر', style: TextStyle(fontSize: 12)),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('انصراف')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('ساختن')),
+            ),
+            const SizedBox(height: 8),
+            _SheetTile(
+              icon: Icons.edit_note_rounded,
+              title: 'شروع از صفر',
+              subtitle: 'گروه خالی؛ درس‌ها رو خودت توی ویرایشگر اضافه می‌کنی',
+              onTap: () => Navigator.pop(ctx, 'empty'),
+            ),
+            _SheetTile(
+              icon: Icons.copy_rounded,
+              title: 'کپی درس‌های گروه فعال',
+              subtitle: 'همهٔ درس‌های «${_store.activeGroup.name}» کپی می‌شن',
+              onTap: () => Navigator.pop(ctx, 'copy'),
+            ),
+            _SheetTile(
+              icon: Icons.file_open_outlined,
+              title: 'از فایل پشتیبان یا خروجی چت‌بات',
+              subtitle: 'انتخاب فایل .json از حافظهٔ گوشی',
+              onTap: () => Navigator.pop(ctx, 'file'),
+            ),
+            _SheetTile(
+              icon: Icons.content_paste_rounded,
+              title: 'از متن چسبانده‌شده',
+              subtitle: 'متن JSON رو مستقیم می‌چسبونی',
+              onTap: () => Navigator.pop(ctx, 'text'),
+            ),
+            _SheetTile(
+              icon: Icons.auto_awesome_rounded,
+              title: 'با دستیار هوشمند',
+              subtitle: 'پرامپت آماده بگیر، به چت‌بات بده، خروجی رو بیار',
+              onTap: () => Navigator.pop(ctx, 'ai'),
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
-
-    final name = nameCtrl.text;
-    nameCtrl.dispose();
-    if (ok != true) return;
-
-    await _store.addGroup(name: name, copyCoursesFromActive: copy);
-    await NotificationService.instance.reschedule();
-    if (mounted) {
-      toast(context, copy ? 'گروه ساخته شد (با کپی درس‌ها) ✦' : 'گروه جدید ساخته شد ✦');
+    if (choice == null || !mounted) return;
+    switch (choice) {
+      case 'empty':
+        await _createNamed((name) async {
+          await _store.addGroup(name: name);
+          return 'گروه خالی ساخته شد — با «درس جدید» شروع کن ✦';
+        });
+      case 'copy':
+        await _createNamed((name) async {
+          await _store.addGroup(name: name, copyCoursesFromActive: true);
+          return 'گروه با کپی درس‌ها ساخته شد ✦';
+        });
+      case 'file':
+        await _importFromFile();
+      case 'text':
+        await _importFromText();
+      case 'ai':
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
+        );
     }
+  }
+
+  Future<void> _createNamed(Future<String> Function(String name) create) async {
+    final name = await _askName();
+    if (name == null || !mounted) return;
+    final msg = await create(name);
+    await NotificationService.instance.reschedule();
+    if (mounted) toast(context, msg);
+  }
+
+  Future<String?> _askName() {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('نام گروه جدید'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'نام گروه',
+            hintText: 'مثلاً ترم دوم یا گروه ۲۵',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) => Navigator.pop(ctx, v),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+          FilledButton(
+            onPressed: () => ctrl.text.trim().isEmpty ? null : Navigator.pop(ctx, ctrl.text),
+            child: const Text('ساختن'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importFromFile() async {
+    String? text;
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json', 'txt'],
+        withData: true,
+      );
+      final file = result?.files.single;
+      if (file == null) return;
+      if (file.bytes != null) {
+        text = utf8.decode(file.bytes!, allowMalformed: true);
+      } else if (file.path != null) {
+        text = await File(file.path!).readAsString();
+      }
+    } catch (_) {
+      if (mounted) toast(context, 'خوندن فایل ممکن نشد');
+      return;
+    }
+    if (text == null) return;
+    final name = await _askName();
+    if (name == null || !mounted) return;
+    try {
+      final g = await _store.importAsNewGroup(text, name: name);
+      await NotificationService.instance.reschedule();
+      if (mounted) toast(context, '«${g.name}» با ${fa(g.courses.length)} درس ساخته شد ✦');
+    } on FormatException catch (e) {
+      if (mounted) toast(context, e.message);
+    } catch (_) {
+      if (mounted) toast(context, 'فایل قابل قبول نبود — فرمت JSON رو چک کن');
+    }
+  }
+
+  Future<void> _importFromText() async {
+    final ctrl = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('افزودن گروه از متن'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 9,
+          decoration: const InputDecoration(
+            hintText: 'متن JSON رو بچسبون — حتی اگر چت‌بات توضیح اضافه نوشته باشه، خودش تمیز می‌شه.',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: const Text('ادامه')),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (text == null || text.trim().isEmpty || !mounted) return;
+    final name = await _askName();
+    if (name == null || !mounted) return;
+    try {
+      final g = await _store.importAsNewGroup(text, name: name);
+      await NotificationService.instance.reschedule();
+      if (mounted) toast(context, '«${g.name}» با ${fa(g.courses.length)} درس ساخته شد ✦');
+    } on FormatException catch (e) {
+      if (mounted) toast(context, e.message);
+    } catch (_) {
+      if (mounted) toast(context, 'متن قابل قبول نبود — فرمت JSON رو چک کن');
+    }
+  }
+
+  // ───────────── عملیات روی گروه ─────────────
+
+  Future<void> _select(CourseGroup g) async {
+    if (g.id == _store.activeGroupId) return;
+    await _store.selectGroup(g.id);
+    await NotificationService.instance.reschedule();
+    if (mounted) toast(context, 'گروه فعال: ${g.name} ✦');
   }
 
   Future<void> _rename(CourseGroup g) async {
@@ -94,6 +251,22 @@ class _GroupsScreenState extends State<GroupsScreen> {
     await _store.renameGroup(g.id, name);
   }
 
+  /// ویرایش درس‌ها: گروه باید فعال باشه چون ویرایشگر روی گروه فعال کار می‌کنه.
+  Future<void> _editCourses(CourseGroup g) async {
+    await _store.selectGroup(g.id);
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CoursesEditorScreen()),
+    );
+  }
+
+  Future<void> _backupGroup(CourseGroup g) async {
+    await _store.selectGroup(g.id);
+    final code = encodeBackupCode(_store.exportActiveGroupJson());
+    await Clipboard.setData(ClipboardData(text: code));
+    if (mounted) toast(context, 'کد کوتاه پشتیبان «${g.name}» کپی شد — در بازگردانی همون کد رو بچسبون ✦');
+  }
+
   Future<void> _delete(CourseGroup g) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -101,7 +274,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
         title: Text('«${g.name}» پاک بشه؟'),
         content: Text(
           '${fa(g.courses.length)} درس و همهٔ جلسه‌های این گروه پاک می‌شن. '
-          'گروه‌های دیگر دست‌نخورده می‌مونن.',
+          'گروه‌های دیگر دست‌نخورده می‌مونن. اگه هنوز پشتیبان نداری، اول «پشتیبان این گروه» رو بگیر.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('نه')),
@@ -124,12 +297,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
     }
   }
 
-  Future<void> _select(CourseGroup g) async {
-    if (g.id == _store.activeGroupId) return;
-    await _store.selectGroup(g.id);
-    await NotificationService.instance.reschedule();
-    if (mounted) toast(context, 'گروه فعال: ${g.name} ✦');
-  }
+  // ───────────── صفحه ─────────────
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +313,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
           floatingActionButton: FloatingActionButton.extended(
             backgroundColor: AppColors.saffron,
             foregroundColor: Colors.white,
-            onPressed: _addGroup,
+            onPressed: _addGroupFlow,
             icon: const Icon(Icons.add_rounded),
             label: const Text('گروه جدید'),
           ),
@@ -158,11 +326,11 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Text(
-                  'هر گروه برنامهٔ خودش رو داره. گروهی که «فعال» باشه توی صفحهٔ اصلی، '
-                  'جدول هفتگی و امتحان‌ها نشون داده می‌شه. اعلان‌ها هم فقط از '
-                  'برنامه‌ای می‌آد که توی تنظیمات برای اعلان انتخاب شده.',
-                  style: TextStyle(color: AppColors.muted, height: 1.7, fontSize: 13),
+                child: Text(
+                  'با ضربه روی هر گروه، اون گروه «فعال» می‌شه — یعنی صفحهٔ اصلی، '
+                  'جدول هفتگی و امتحان‌های همون گروه نشون داده می‌شه.\n'
+                  'از منوی سه‌نقطهٔ هر گروه: تغییر نام، ویرایش درس‌ها، گرفتن پشتیبان و حذف.',
+                  style: const TextStyle(color: AppColors.muted, height: 1.7, fontSize: 13),
                 ),
               ),
               const SizedBox(height: 14),
@@ -173,6 +341,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   canDelete: groups.length > 1,
                   onSelect: () => _select(g),
                   onRename: () => _rename(g),
+                  onEdit: () => _editCourses(g),
+                  onBackup: () => _backupGroup(g),
                   onDelete: () => _delete(g),
                 ),
             ],
@@ -183,12 +353,32 @@ class _GroupsScreenState extends State<GroupsScreen> {
   }
 }
 
+class _SheetTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _SheetTile({required this.icon, required this.title, required this.subtitle, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.saffron),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
+      onTap: onTap,
+    );
+  }
+}
+
 class _GroupTile extends StatelessWidget {
   final CourseGroup group;
   final bool active;
   final bool canDelete;
   final VoidCallback onSelect;
   final VoidCallback onRename;
+  final VoidCallback onEdit;
+  final VoidCallback onBackup;
   final VoidCallback onDelete;
 
   const _GroupTile({
@@ -197,6 +387,8 @@ class _GroupTile extends StatelessWidget {
     required this.canDelete,
     required this.onSelect,
     required this.onRename,
+    required this.onEdit,
+    required this.onBackup,
     required this.onDelete,
   });
 
@@ -249,7 +441,7 @@ class _GroupTile extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           '${fa(group.courses.length)} درس · ${fa(group.totalUnits)} واحد · '
-                          '${fa(group.sessionCount)} جلسه',
+                          '${fa(group.sessionCount)} جلسه — برای انتخاب، روی همین ردیف بزن',
                           style: const TextStyle(color: AppColors.muted, fontSize: 13),
                         ),
                       ],
@@ -257,14 +449,24 @@ class _GroupTile extends StatelessWidget {
                   ),
                 ),
                 PopupMenuButton<String>(
+                  tooltip: 'بیشتر',
                   onSelected: (v) {
-                    if (v == 'rename') onRename();
-                    if (v == 'delete') onDelete();
+                    switch (v) {
+                      case 'rename':
+                        onRename();
+                      case 'edit':
+                        onEdit();
+                      case 'backup':
+                        onBackup();
+                      case 'delete':
+                        onDelete();
+                    }
                   },
                   itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'edit', child: Text('ویرایش درس‌ها')),
                     const PopupMenuItem(value: 'rename', child: Text('تغییر نام')),
-                    if (canDelete)
-                      const PopupMenuItem(value: 'delete', child: Text('حذف گروه')),
+                    const PopupMenuItem(value: 'backup', child: Text('پشتیبان این گروه (کپی)')),
+                    if (canDelete) const PopupMenuItem(value: 'delete', child: Text('حذف گروه')),
                   ],
                 ),
               ],

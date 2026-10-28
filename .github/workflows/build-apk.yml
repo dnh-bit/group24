@@ -96,19 +96,32 @@ jobs:
       - name: Test
         run: flutter test
 
-      - name: Build APK
-        run: flutter build apk --release
+      # split-per-abi: به‌جای APK چاقِ سه‌معماریه، فقط arm64 ساخته می‌شه —
+      # حجم نصب از ~۲۵MB به حدود ~۱۰MB می‌رسه (گوشی‌های جدید همه arm64 هستند).
+      - name: Build APK (normal)
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64
 
-      - name: Rename APK
+      - name: Rename APK (normal)
         run: |
-          cp build/app/outputs/flutter-apk/app-release.apk \
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
              "build/app/outputs/flutter-apk/plan-v${{ steps.ver.outputs.short }}.apk"
+
+      # نسخهٔ «خالی» برای همهٔ دانشگاه‌ها: بدون برنامه‌های پیش‌فرض گروه ۲۴/۲۵
+      - name: Build APK (empty)
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define=EMPTY_DEFAULT=true
+
+      - name: Rename APK (empty)
+        run: |
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+             "build/app/outputs/flutter-apk/plan-empty-v${{ steps.ver.outputs.short }}.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: plan-apk
-          path: build/app/outputs/flutter-apk/plan-v*.apk
+          path: |
+            build/app/outputs/flutter-apk/plan-v*.apk
+            build/app/outputs/flutter-apk/plan-empty-v*.apk
 
       # هر بیلد خودکار به‌صورت ریلیز گیت‌هاب آرشیو می‌شه
       - name: Create Release
@@ -118,10 +131,11 @@ jobs:
         run: |
           set -e
           TAG="v${{ steps.ver.outputs.version }}"
-          TITLE="${{ steps.ver.outputs.short }}"
+          TAG_EMPTY="v${{ steps.ver.outputs.version }}-empty"
           APK="build/app/outputs/flutter-apk/plan-v${{ steps.ver.outputs.short }}.apk"
+          APK_EMPTY="build/app/outputs/flutter-apk/plan-empty-v${{ steps.ver.outputs.short }}.apk"
           PRERELEASE_FLAG=""
-          case "$TITLE" in *-*) PRERELEASE_FLAG="--prerelease";; esac
+          case "${{ steps.ver.outputs.short }}" in *-*) PRERELEASE_FLAG="--prerelease";; esac
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG already exists — updating assets"
             gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
@@ -129,8 +143,23 @@ jobs:
             echo "Creating release $TAG"
             gh release create "$TAG" \
               --repo "$GITHUB_REPOSITORY" \
-              --title "$TITLE" \
+              --title "${{ steps.ver.outputs.short }}" \
               $PRERELEASE_FLAG \
               --notes-file release_notes.md \
               "$APK"
+          fi
+
+          # ریلیز جداگانهٔ نسخهٔ خالی (پیش‌انتشار) — بدون گروه‌های پیش‌فرض
+          printf 'نسخهٔ خالی برای همهٔ دانشگاه‌ها — بدون برنامه‌های پیش‌فرض گروه ۲۴ و ۲۵.\n\nبقیهٔ تغییرات مثل نسخهٔ اصلی همین نسخه است.\n\n📱 فایل نصبی: plan-empty-v${{ steps.ver.outputs.short }}.apk\n' > release_notes_empty.md
+          if gh release view "$TAG_EMPTY" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG_EMPTY already exists — updating assets"
+            gh release upload "$TAG_EMPTY" "$APK_EMPTY" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            echo "Creating release $TAG_EMPTY"
+            gh release create "$TAG_EMPTY" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "${{ steps.ver.outputs.short }}-empty" \
+              --prerelease \
+              --notes-file release_notes_empty.md \
+              "$APK_EMPTY"
           fi
