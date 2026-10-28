@@ -39,6 +39,25 @@ def draw_star(d, cx, cy, r_out, r_in, fill, points=8, rot=0.0):
     d.polygon(star_points(cx, cy, r_out, r_in, points, rot), fill=fill)
 
 
+def draw_gear(d, cx, cy, r_out, fill, teeth=8, rot=0.0, hole=None):
+    """چرخ‌دندهٔ ساده: حلقهٔ دندانه‌دار با سوراخ وسط."""
+    r_root = r_out * 0.76
+    step = 2 * math.pi / teeth
+    pts = []
+    for i in range(teeth):
+        a = rot + i * step
+        # پایهٔ دندانه → سر دندانه → سر دندانه → پایهٔ دندانهٔ بعدی
+        pts.append((cx + r_root * math.cos(a - step * 0.30), cy + r_root * math.sin(a - step * 0.30)))
+        pts.append((cx + r_out * math.cos(a - step * 0.17), cy + r_out * math.sin(a - step * 0.17)))
+        pts.append((cx + r_out * math.cos(a + step * 0.17), cy + r_out * math.sin(a + step * 0.17)))
+        pts.append((cx + r_root * math.cos(a + step * 0.30), cy + r_root * math.sin(a + step * 0.30)))
+        pts.append((cx + r_root * math.cos(a + step * 0.50), cy + r_root * math.sin(a + step * 0.50)))
+    d.polygon(pts, fill=fill)
+    if hole is not None:
+        hr = r_out * 0.38
+        d.ellipse([cx - hr, cy - hr, cx + hr, cy + hr], fill=hole)
+
+
 def make(full_bleed: bool):
     img = gradient_bg(S) if full_bleed else Image.new('RGBA', (S, S), (0, 0, 0, 0))
     if not full_bleed:
@@ -119,11 +138,10 @@ def build(transparent: bool) -> Image.Image:
                             radius=int(chip * 0.16), fill=LINE + (255,))
         y += row_h + gap
 
-    # bottom accent: the app's 8-point star, sitting on the card's lower corner
-    sr = int(cw * 0.20)
-    sx, sy = right - int(cw * 0.06) - sr, bottom - int(ch * 0.02) - sr
-    draw_star(d, sx, sy, sr, int(sr * 0.44), SAFFRON + (255,), rot=math.pi / 8)
-    draw_star(d, sx, sy, int(sr * 0.52), int(sr * 0.23), (255, 255, 255, 255), rot=math.pi / 8)
+    # bottom accent: saffron gear (settings) on the card's lower corner
+    sr = int(cw * 0.17)
+    sx, sy = right - int(cw * 0.055) - sr, bottom - int(ch * 0.015) - sr
+    draw_gear(d, sx, sy, sr, SAFFRON + (255,), teeth=8, rot=math.pi / 8, hole=(255, 255, 255, 255))
 
     return base
 
