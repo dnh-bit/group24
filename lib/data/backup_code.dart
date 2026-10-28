@@ -97,6 +97,8 @@ bool isCompactPlanText(String raw) {
       continue;
     }
 
+    if (kind != 's' && kind != 'x') continue; // حاشیهٔ چت‌بات — خطوط ناشناخته نادیده
+
     if (current == null) {
       throw const FormatException('خط جلسه یا امتحان قبل از اولین درس اومده');
     }
