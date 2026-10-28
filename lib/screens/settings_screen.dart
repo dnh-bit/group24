@@ -8,7 +8,7 @@ import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../theme.dart';
 import '../utils.dart';
-import '../ai_assistant_screen.dart';
+import 'ai_assistant_screen.dart';
 import 'editor/groups_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
