@@ -298,9 +298,11 @@ class ScheduleStore extends ChangeNotifier {
     try {
       return jsonDecode(s);
     } catch (_) {
-      // تلاش دوم: پاک کردن کاماهای اضافه و نقل‌قول‌های فارسی
+      // تلاش دوم: ارقام فارسی/عربی → لاتین، حذف کامای اضافه، نقل‌قول فارسی
       s = s
-          .replaceAll(RegExp(r',\s*([}\]])'), r'$1')
+          .replaceAllMapped(RegExp('[۰-۹]'), (m) => '${m[0]!.codeUnitAt(0) - 0x06F0}')
+          .replaceAllMapped(RegExp('[٠-٩]'), (m) => '${m[0]!.codeUnitAt(0) - 0x0660}')
+          .replaceAllMapped(RegExp(r',(\s*[}\]])'), (m) => m[1]!)
           .replaceAll('“', '"')
           .replaceAll('”', '"');
       try {
