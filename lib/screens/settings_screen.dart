@@ -339,7 +339,8 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               ListTile(
                 leading: const Icon(Icons.tag_rounded, color: AppColors.muted),
                 title: const Text('نسخهٔ نصب‌شده', style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text(versionLabel, dir: TextDirection.ltr),
+                subtitle: Text(versionLabel,
+                    textDirection: TextDirection.ltr, textAlign: TextAlign.left),
               ),
             ],
           ),
