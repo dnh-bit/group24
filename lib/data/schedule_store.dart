@@ -292,16 +292,49 @@ class ScheduleStore extends ChangeNotifier {
     return _decodeCourses(text);
   }
 
+  /// ارقام فارسی/عربی را فقط بیرون از رشته‌ها به لاتین تبدیل می‌کند
+  /// (متن داخل «…» مثل نام درس و شمارهٔ کلاس دست‌نخورده می‌ماند).
+  String _latinDigitsOutsideStrings(String s) {
+    final out = StringBuffer();
+    var inString = false;
+    var escaped = false;
+    for (final rune in s.runes) {
+      final ch = String.fromCharCode(rune);
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch == r'\') {
+          escaped = true;
+        } else if (ch == '"') {
+          inString = false;
+        }
+        out.write(ch);
+        continue;
+      }
+      if (ch == '"') {
+        inString = true;
+        out.write(ch);
+        continue;
+      }
+      if (rune >= 0x06F0 && rune <= 0x06F9) {
+        out.writeCharCode(0x30 + (rune - 0x06F0));
+      } else if (rune >= 0x0660 && rune <= 0x0669) {
+        out.writeCharCode(0x30 + (rune - 0x0660));
+      } else {
+        out.write(ch);
+      }
+    }
+    return out.toString();
+  }
+
   /// JSON را می‌خواند؛ اگر نشد null برمی‌گرداند (بدون پرتاب استثنای خام).
   dynamic _safeJson(String raw) {
     var s = extractJson(raw);
     try {
       return jsonDecode(s);
     } catch (_) {
-      // تلاش دوم: ارقام فارسی/عربی → لاتین، حذف کامای اضافه، نقل‌قول فارسی
-      s = s
-          .replaceAllMapped(RegExp('[۰-۹]'), (m) => '${m[0]!.codeUnitAt(0) - 0x06F0}')
-          .replaceAllMapped(RegExp('[٠-٩]'), (m) => '${m[0]!.codeUnitAt(0) - 0x0660}')
+      // تلاش دوم: ارقام فارسی بیرون رشته‌ها، حذف کامای اضافه، نقل‌قول فارسی
+      s = _latinDigitsOutsideStrings(s)
           .replaceAllMapped(RegExp(r',(\s*[}\]])'), (m) => m[1]!)
           .replaceAll('“', '"')
           .replaceAll('”', '"');
@@ -389,7 +422,10 @@ class ScheduleStore extends ChangeNotifier {
   }
 
   List<Course> _decodeCourses(String raw) {
-    final data = jsonDecode(extractJson(raw));
+    final data = _safeJson(raw);
+    if (data == null) {
+      throw const FormatException('فایل JSON سالم نیست (ساختار شکسته یا ناقصه)');
+    }
     dynamic list;
     if (data is List) {
       list = data;
@@ -425,7 +461,8 @@ class ScheduleStore extends ChangeNotifier {
   }
 
   List<CourseGroup> _decodeGroups(String raw) {
-    final data = jsonDecode(extractJson(raw));
+    final data = _safeJson(raw);
+    if (data == null) throw const FormatException('فایل JSON سالم نیست (ساختار شکسته یا ناقصه)');
     if (data is! Map) throw const FormatException('فرمت نامعتبر');
     final rawGroups = data['groups'] ?? data['گروه‌ها'];
     if (rawGroups is! List) {
