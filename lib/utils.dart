@@ -39,8 +39,18 @@ String extractJson(String raw) {
   // بلوک‌های کد مارک‌داون را می‌شکنیم
   final fence = RegExp(r'```[a-zA-Z]*\s*\n([\s\S]*?)```').firstMatch(s);
   if (fence != null) s = fence.group(1)!.trim();
-  final start = s.indexOf('{');
-  final end = s.lastIndexOf('}');
+  // اولین ساختار JSON: شیء {...} یا آرایهٔ [...]
+  final objStart = s.indexOf('{');
+  final arrStart = s.indexOf('[');
+  int start;
+  int end;
+  if (arrStart >= 0 && (objStart < 0 || arrStart < objStart)) {
+    start = arrStart;
+    end = s.lastIndexOf(']');
+  } else {
+    start = objStart;
+    end = s.lastIndexOf('}');
+  }
   if (start < 0 || end <= start) return s;
   return s.substring(start, end + 1);
 }

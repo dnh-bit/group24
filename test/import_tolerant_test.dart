@@ -78,7 +78,7 @@ void main() {
 
 ```json
 {"courses":[{"id":1,"name":"روان‌شناسی","units":2,
-  "sessions":[{"d":1,"s":14,"e":16,"room":"۲۰۴"},]},],}
+  "sessions":[{"d":1,"s":14,"e":16,"room":"۲۰۴"},]},]}
 ```
 ''';
     final list = store.parseCoursesOnly(text);
