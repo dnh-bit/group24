@@ -262,6 +262,55 @@ class ScheduleStore extends ChangeNotifier {
     return pretty ? const JsonEncoder.withIndent('  ').convert(data) : jsonEncode(data);
   }
 
+  /// فقط پارس می‌کند و هیچ داده‌ای را تغییر نمی‌دهد (تست/پیش‌نمایش).
+  List<Course> parseCoursesOnly(String text) {
+    final decoded = tryDecodeBackupCode(text);
+    if (decoded != null) text = decoded;
+    if (isCompactPlanText(text)) return parseCompactPlan(text).courses;
+
+    final data = _safeJson(text);
+    if (data == null) {
+      throw const FormatException('فایل JSON سالم نیست (ساختار شکسته یا ناقصه)');
+    }
+    // آرایهٔ خالی = برنامهٔ بدون درس (در ایمپورت رد می‌شود، در پارس مجاز است)
+    if (data is List && data.isEmpty) return const [];
+
+    final map = data is Map
+        ? <String, dynamic>{
+            for (final e in data.entries) e.key.toString().toLowerCase(): e.value,
+            for (final e in data.entries) e.key.toString(): e.value,
+          }
+        : null;
+
+    if (map != null && (map['groups'] is List || map['گروه‌ها'] is List)) {
+      final groups = _decodeGroups(text);
+      return groups.isEmpty ? const [] : groups.first.courses;
+    }
+    if (map != null && map['group'] is Map) {
+      return CourseGroup.fromJson(Map<String, dynamic>.from(map['group'] as Map)).courses;
+    }
+    return _decodeCourses(text);
+  }
+
+  /// JSON را می‌خواند؛ اگر نشد null برمی‌گرداند (بدون پرتاب استثنای خام).
+  dynamic _safeJson(String raw) {
+    var s = extractJson(raw);
+    try {
+      return jsonDecode(s);
+    } catch (_) {
+      // تلاش دوم: پاک کردن کاماهای اضافه و نقل‌قول‌های فارسی
+      s = s
+          .replaceAll(RegExp(r',\s*([}\]])'), r'$1')
+          .replaceAll('“', '"')
+          .replaceAll('”', '"');
+      try {
+        return jsonDecode(s);
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
   /// متن JSON رو جایگزین برنامهٔ فعلی می‌کنه. تعداد درس‌ها رو برمی‌گردونه.
   ///
   /// هم پشتیبان کامل (همهٔ گروه‌ها) و هم فایل تک‌گروهی و هم فرمت قدیمی
@@ -339,22 +388,54 @@ class ScheduleStore extends ChangeNotifier {
 
   List<Course> _decodeCourses(String raw) {
     final data = jsonDecode(extractJson(raw));
-    dynamic list = data is Map ? data['courses'] : data;
-    if (list == null && data is Map && data['group'] is Map) {
-      list = (data['group'] as Map)['courses'];
+    dynamic list;
+    if (data is List) {
+      list = data;
+    } else if (data is Map) {
+      list = data['courses'] ?? data['lessons'] ?? data['درس‌ها'];
+      if (list == null && data['group'] is Map) {
+        final g = data['group'] as Map;
+        list = g['courses'] ?? g['lessons'] ?? g['درس‌ها'];
+      }
+      // تک‌گروه با کلید‌های فارسی («درس‌ها») یا آرایهٔ نام‌دار
+      if (list == null) {
+        for (final v in data.values) {
+          if (v is List && v.isNotEmpty && v.first is Map &&
+              ((v.first as Map).containsKey('name') || (v.first as Map).containsKey('نام'))) {
+            list = v;
+            break;
+          }
+        }
+      }
     }
-    if (list is! List) throw const FormatException('فرمت نامعتبر');
-    return [for (final c in list) Course.fromJson(Map<String, dynamic>.from(c as Map))];
+    if (list is! List) {
+      throw const FormatException('فایل هیچ فهرست درسی نداره (کلید courses یا درس‌ها لازمه)');
+    }
+    final out = <Course>[];
+    for (var i = 0; i < list.length; i++) {
+      final item = list[i];
+      if (item is! Map) continue;
+      final c = Course.fromJson(Map<String, dynamic>.from(item));
+      out.add(c.id > 0 ? c : c.copyWith(id: i + 1));
+    }
+    if (out.isEmpty) throw const FormatException('هیچ درسی توی فایل پیدا نشد');
+    return out;
   }
 
   List<CourseGroup> _decodeGroups(String raw) {
     final data = jsonDecode(extractJson(raw));
-    if (data is! Map || data['groups'] is! List) {
-      throw const FormatException('فرمت نامعتبر');
+    if (data is! Map) throw const FormatException('فرمت نامعتبر');
+    final rawGroups = data['groups'] ?? data['گروه‌ها'];
+    if (rawGroups is! List) {
+      // ممکنه مستقیم آرایهٔ گروه‌ها باشه یا یک گروه تنها زیر «group»
+      if (data['group'] is Map) {
+        return [CourseGroup.fromJson(Map<String, dynamic>.from(data['group'] as Map))];
+      }
+      throw const FormatException('فایل هیچ گروهی نداره (کلید groups لازمه)');
     }
     return [
-      for (final g in (data['groups'] as List))
-        CourseGroup.fromJson(Map<String, dynamic>.from(g as Map)),
+      for (final g in rawGroups)
+        if (g is Map) CourseGroup.fromJson(Map<String, dynamic>.from(g)),
     ];
   }
 
@@ -376,18 +457,42 @@ class ScheduleStore extends ChangeNotifier {
       return group.copyWith(courses: p.courses);
     }
 
-    final data = jsonDecode(extractJson(text));
+    final data = _safeJson(text);
+    if (data == null) {
+      throw const FormatException('فایل JSON سالم نیست (ساختار شکسته یا ناقصه)');
+    }
+    // کلیدهای با حروف بزرگ/کوچک یا فارسی
+    Map<String, dynamic>? map;
+    if (data is Map) {
+      map = {for (final e in data.entries) e.key.toString().toLowerCase(): e.value};
+      for (final e in data.entries) {
+        map.putIfAbsent(e.key.toString(), () => e.value);
+      }
+    }
 
     List<Course> courses;
     String suggested;
-    if (data is Map && data['groups'] is List) {
+
+    // فایل کاملِ همهٔ گروه‌ها
+    if (map != null && (map['groups'] is List || map['گروه‌ها'] is List)) {
       final groups = _decodeGroups(text);
       _validateGroups(groups);
-      // پشتیبان کامل آمده: گروه اول را می‌گیریم (بقیه جداگانه وارد شوند)
       courses = groups.first.courses;
       suggested = groups.first.name;
-    } else if (data is Map && data['group'] is Map) {
-      final g = CourseGroup.fromJson(Map<String, dynamic>.from(data['group'] as Map));
+    } else if (map != null && map['group'] is Map) {
+      final g = CourseGroup.fromJson(Map<String, dynamic>.from(map['group'] as Map));
+      _validateCourses(g.courses, g.name);
+      courses = g.courses;
+      suggested = g.name;
+    } else if (map != null && map['courses'] is List) {
+      courses = _decodeCourses(text);
+      _validateCourses(courses, 'درس');
+      suggested = '';
+    } else if (data is List &&
+        data.isNotEmpty &&
+        data.every((e) => e is List || (e is Map && (e['courses'] is List || e['lessons'] is List)))) {
+      // آرایهٔ گروه‌ها بدون پوشش {groups: …}
+      final g = CourseGroup.fromJson(Map<String, dynamic>.from(data.first as Map));
       _validateCourses(g.courses, g.name);
       courses = g.courses;
       suggested = g.name;

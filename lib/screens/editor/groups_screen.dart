@@ -193,8 +193,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
       if (mounted) toast(context, '«${g.name}» با ${fa(g.courses.length)} درس ساخته شد ✦');
     } on FormatException catch (e) {
       if (mounted) toast(context, e.message);
-    } catch (_) {
-      if (mounted) toast(context, 'فایل قابل قبول نبود — فرمت JSON رو چک کن');
+    } catch (e) {
+      if (mounted) toast(context, 'فایل خونده شد ولی ساختارش قابل استفاده نیست (${e.runtimeType})');
     }
   }
 
@@ -228,8 +228,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
       if (mounted) toast(context, '«${g.name}» با ${fa(g.courses.length)} درس ساخته شد ✦');
     } on FormatException catch (e) {
       if (mounted) toast(context, e.message);
-    } catch (_) {
-      if (mounted) toast(context, 'متن قابل قبول نبود — فرمت JSON رو چک کن');
+    } catch (e) {
+      if (mounted) toast(context, 'متن خونده شد ولی ساختارش قابل استفاده نیست (${e.runtimeType})');
     }
   }
 

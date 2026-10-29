@@ -3,6 +3,78 @@ import 'package:flutter/material.dart';
 import '../jalali.dart';
 import '../utils.dart';
 
+// ───────────── خواندن تحمل‌پذیر JSON ─────────────
+// خروجی چت‌بات‌ها و فایل‌های دست‌ساز، کلیدها و نوع‌های متفاوتی دارند
+// (day/روز، start/"08:00"، color:"#2F6F8F"، id به‌صورت متن، ارقام فارسی).
+// این توابع همه را به یک مقدار سالم تبدیل می‌کنند تا ایمپورت بی‌دلیل رد نشود.
+
+String _normDigits(String s) => s
+    .replaceAllMapped(RegExp('[۰-۹]'), (m) => '${m[0]!.codeUnitAt(0) - 0x06F0}')
+    .replaceAllMapped(RegExp('[٠-٩]'), (m) => '${m[0]!.codeUnitAt(0) - 0x0660}')
+    .replaceAll('\u066B', '.')
+    .trim();
+
+dynamic _pick(Map j, List<String> keys) {
+  for (final k in keys) {
+    if (j.containsKey(k) && j[k] != null) return j[k];
+  }
+  // کلیدهای با حروف بزرگ/کوچک متفاوت
+  final lower = {for (final e in j.entries) e.key.toString().toLowerCase(): e.value};
+  for (final k in keys) {
+    final v = lower[k.toLowerCase()];
+    if (v != null) return v;
+  }
+  return null;
+}
+
+String _str(dynamic v, [String def = '']) {
+  if (v == null) return def;
+  if (v is String) return v.trim();
+  return v.toString().trim();
+}
+
+int _int(dynamic v, int def) {
+  if (v == null) return def;
+  if (v is num) return v.toInt();
+  final s = _normDigits(v.toString());
+  return int.tryParse(s) ?? double.tryParse(s)?.toInt() ?? def;
+}
+
+double _dbl(dynamic v, double def) {
+  if (v == null) return def;
+  if (v is num) return v.toDouble();
+  final s = _normDigits(v.toString());
+  if (s.contains(':')) {
+    final p = s.split(':');
+    final h = int.tryParse(p[0].trim());
+    final m = int.tryParse(p.length > 1 ? p[1].trim() : '0');
+    if (h != null) return h + (m ?? 0) / 60.0;
+  }
+  return double.tryParse(s) ?? def;
+}
+
+int _dayOf(dynamic v, int def) {
+  if (v == null) return def;
+  if (v is num) return v.toInt();
+  final s = _normDigits(v.toString()).replaceAll('ي', 'ی').replaceAll('ك', 'ک');
+  final i = kDayNames.indexOf(s);
+  if (i >= 0) return i;
+  return int.tryParse(s) ?? def;
+}
+
+int _colorOf(dynamic v) {
+  if (v == null) return kCoursePalette[0];
+  if (v is num) return v.toInt();
+  var s = _str(v).replaceFirst('#', '');
+  if (s.toLowerCase().startsWith('0x')) s = s.substring(2);
+  if (s.length == 6) s = 'FF$s';
+  if (s.length == 8) {
+    final parsed = int.tryParse(s, radix: 16);
+    if (parsed != null) return parsed;
+  }
+  return kCoursePalette[0];
+}
+
 class Session {
   final int day; // ۰=شنبه ... ۶=جمعه
   final double start; // ساعت اعشاری: 7.5 یعنی ۷:۳۰
@@ -36,13 +108,22 @@ class Session {
 
   Map<String, dynamic> toJson() => {'d': day, 's': start, 'e': end, 'room': room, 't': type};
 
-  factory Session.fromJson(Map<String, dynamic> j) => Session(
-        day: (j['d'] as num).toInt(),
-        start: (j['s'] as num).toDouble(),
-        end: (j['e'] as num).toDouble(),
-        room: (j['room'] ?? '') as String,
-        type: (j['t'] ?? 'نظری') as String,
-      );
+  factory Session.fromJson(Map<String, dynamic> j) {
+    var day = _dayOf(_pick(j, ['d', 'day', 'روز']) ?? _pick(j, ['weekday']), 0);
+    if (day < 0 || day > 6) day = 0;
+    final start = _dbl(_pick(j, ['s', 'start', 'شروع', 'from']), 8);
+    var end = _dbl(_pick(j, ['e', 'end', 'پایان', 'to']), start + 2);
+    if (end <= start) end = start + 2;
+    return Session(
+      day: day,
+      start: start.clamp(0.0, 24.0),
+      end: end.clamp(0.0, 24.0),
+      room: _str(_pick(j, ['room', 'کلاس', 'place', 'location'])),
+      type: _str(_pick(j, ['t', 'type', 'نوع']), 'نظری').isEmpty
+          ? 'نظری'
+          : _str(_pick(j, ['t', 'type', 'نوع']), 'نظری'),
+    );
+  }
 }
 
 class Exam {
@@ -76,12 +157,24 @@ class Exam {
   Map<String, dynamic> toJson() =>
       {'jy': date.y, 'jm': date.m, 'jd': date.d, 's': start, 'e': end, 'place': place};
 
-  factory Exam.fromJson(Map<String, dynamic> j) => Exam(
-        date: JDate((j['jy'] as num).toInt(), (j['jm'] as num).toInt(), (j['jd'] as num).toInt()),
-        start: (j['s'] as num).toDouble(),
-        end: (j['e'] as num).toDouble(),
-        place: (j['place'] ?? '') as String,
-      );
+  factory Exam.fromJson(Map<String, dynamic> j) {
+    final date = _pick(j, ['date', 'تاریخ']);
+    final dateMap = date is Map ? Map<String, dynamic>.from(date) : j;
+    final jy = _int(_pick(dateMap, ['jy', 'y', 'year', 'سال']), 1405);
+    var jm = _int(_pick(dateMap, ['jm', 'm', 'month', 'ماه']), 1);
+    var jd = _int(_pick(dateMap, ['jd', 'd', 'day', 'روز']), 1);
+    if (jm < 1 || jm > 12) jm = 1;
+    if (jd < 1 || jd > 31) jd = 1;
+    final start = _dbl(_pick(j, ['s', 'start', 'شروع']), 8);
+    var end = _dbl(_pick(j, ['e', 'end', 'پایان']), start + 2);
+    if (end <= start) end = start + 2;
+    return Exam(
+      date: JDate(jy, jm, jd),
+      start: start.clamp(0.0, 24.0),
+      end: end.clamp(0.0, 24.0),
+      place: _str(_pick(j, ['place', 'محل', 'room', 'location'])),
+    );
+  }
 }
 
 class Course {
@@ -162,23 +255,30 @@ class Course {
         'muted': muted,
       };
 
-  factory Course.fromJson(Map<String, dynamic> j) => Course(
-        id: (j['id'] as num).toInt(),
-        name: j['name'] as String,
-        short: (j['short'] ?? '') as String,
-        tiny: j['tiny'] as String?,
-        prof: (j['prof'] ?? '') as String,
-        kind: (j['kind'] ?? 'تخصصی') as String,
-        units: ((j['units'] ?? 0) as num).toInt(),
-        colorValue: ((j['color'] ?? 0xFF2F6F8F) as num).toInt(),
-        exam: j['exam'] == null ? null : Exam.fromJson(Map<String, dynamic>.from(j['exam'] as Map)),
-        sessions: [
-          for (final s in (j['sessions'] as List? ?? const []))
-            Session.fromJson(Map<String, dynamic>.from(s as Map)),
-        ],
-        note: (j['note'] ?? '') as String,
-        muted: (j['muted'] ?? false) as bool,
-      );
+  factory Course.fromJson(Map<String, dynamic> j) {
+    final exam = _pick(j, ['exam', 'امتحان']);
+    final sessions = _pick(j, ['sessions', 'classes', 'جلسات', 'times']);
+    final name = _str(_pick(j, ['name', 'title', 'نام', 'درس']), 'درس بدون نام');
+    return Course(
+      id: _int(_pick(j, ['id', 'شناسه']), 0),
+      name: name.isEmpty ? 'درس بدون نام' : name,
+      short: _str(_pick(j, ['short', 'کوتاه', 'shortName'])),
+      tiny: _pick(j, ['tiny']) == null ? null : _str(_pick(j, ['tiny'])),
+      prof: _str(_pick(j, ['prof', 'professor', 'teacher', 'استاد'])),
+      kind: _str(_pick(j, ['kind', 'نوع'], 'تخصصی'), 'تخصصی').isEmpty
+          ? 'تخصصی'
+          : _str(_pick(j, ['kind', 'نوع'], 'تخصصی'), 'تخصصی'),
+      units: _int(_pick(j, ['units', 'واحد', 'credits']), 2),
+      colorValue: _colorOf(_pick(j, ['color', 'رنگ', 'colorValue'])),
+      exam: exam is Map ? Exam.fromJson(Map<String, dynamic>.from(exam)) : null,
+      sessions: [
+        for (final s in (sessions is List ? sessions : const []))
+          if (s is Map) Session.fromJson(Map<String, dynamic>.from(s)),
+      ],
+      note: _str(_pick(j, ['note', 'یادداشت'])),
+      muted: _pick(j, ['muted']) == true,
+    );
+  }
 }
 
 class SessionRef {
@@ -239,14 +339,17 @@ class CourseGroup {
         'courses': [for (final c in courses) c.toJson()],
       };
 
-  factory CourseGroup.fromJson(Map<String, dynamic> j) => CourseGroup(
-        id: (j['id'] ?? 'g1').toString(),
-        name: (j['name'] ?? kDefaultGroupName).toString(),
-        courses: [
-          for (final c in (j['courses'] as List? ?? const []))
-            Course.fromJson(Map<String, dynamic>.from(c as Map)),
-        ],
-      );
+  factory CourseGroup.fromJson(Map<String, dynamic> j) {
+    final courses = _pick(j, ['courses', 'lessons', 'در', 'درس‌ها']);
+    return CourseGroup(
+      id: _str(_pick(j, ['id']), 'g1'),
+      name: _str(_pick(j, ['name', 'title', 'نام']), kDefaultGroupName),
+      courses: [
+        for (final c in (courses is List ? courses : const []))
+          if (c is Map) Course.fromJson(Map<String, dynamic>.from(c)),
+      ],
+    );
+  }
 }
 
 /// پالت رنگ‌های درس‌ها (همون رنگ‌های نسخهٔ وب + چند تا اضافه)
