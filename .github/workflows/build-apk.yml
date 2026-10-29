@@ -99,7 +99,7 @@ jobs:
       # split-per-abi: به‌جای APK چاقِ سه‌معماریه، فقط arm64 ساخته می‌شه —
       # حجم نصب از ~۲۵MB به حدود ~۱۰MB می‌رسه (گوشی‌های جدید همه arm64 هستند).
       - name: Build APK (normal)
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define=APP_VERSION=${{ steps.ver.outputs.short }}
 
       - name: Rename APK (normal)
         run: |
@@ -108,7 +108,7 @@ jobs:
 
       # نسخهٔ «خالی» برای همهٔ دانشگاه‌ها: بدون برنامه‌های پیش‌فرض گروه ۲۴/۲۵
       - name: Build APK (empty)
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define=EMPTY_DEFAULT=true
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define=EMPTY_DEFAULT=true --dart-define=APP_VERSION=${{ steps.ver.outputs.short }}
 
       - name: Rename APK (empty)
         run: |

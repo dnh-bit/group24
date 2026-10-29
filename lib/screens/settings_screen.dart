@@ -8,6 +8,7 @@ import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../theme.dart';
 import '../utils.dart';
+import '../version.dart';
 import 'ai_assistant_screen.dart';
 import 'editor/groups_screen.dart';
 
@@ -332,6 +333,13 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                 leading: Icon(Icons.person_outline_rounded, color: AppColors.saffron),
                 title: Text('سازنده و توسعه‌دهنده', style: TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text('علیرضا عودی\nAlirezaoudi@cfu.ac.ir'),
+              ),
+              const Divider(height: 1, indent: 56),
+              // شمارهٔ نسخهٔ نصب‌شده — برای اینکه بشه مطمئن شد آخرین بیلد نصبه
+              ListTile(
+                leading: const Icon(Icons.tag_rounded, color: AppColors.muted),
+                title: const Text('نسخهٔ نصب‌شده', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(versionLabel, dir: TextDirection.ltr),
               ),
             ],
           ),

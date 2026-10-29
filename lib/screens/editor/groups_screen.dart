@@ -167,6 +167,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
   Future<void> _importFromFile() async {
     String? text;
+    String? fileName;
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -175,6 +176,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
       );
       final file = result?.files.single;
       if (file == null) return;
+      fileName = file.name;
       if (file.bytes != null) {
         text = utf8.decode(file.bytes!, allowMalformed: true);
       } else if (file.path != null) {
@@ -192,10 +194,62 @@ class _GroupsScreenState extends State<GroupsScreen> {
       await NotificationService.instance.reschedule();
       if (mounted) toast(context, '«${g.name}» با ${fa(g.courses.length)} درس ساخته شد ✦');
     } on FormatException catch (e) {
-      if (mounted) toast(context, e.message);
+      if (mounted) _showImportError(e.message, file: fileName);
     } catch (e) {
-      if (mounted) toast(context, 'فایل خونده شد ولی ساختارش قابل استفاده نیست (${e.runtimeType})');
+      if (mounted) _showImportError('$e', file: fileName);
     }
+  }
+
+  /// خطای ایمپورت را در پنجرهٔ قابل کپی نشان می‌دهد تا کاربر بتواند عین متن
+  /// را برای ما بفرستد؛ toast گذرا برای دیباگ کافی نیست.
+  void _showImportError(String message, {String? file}) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline_rounded, color: AppColors.saffron),
+            SizedBox(width: 8),
+            Text('فایل وارد نشد', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (file != null)
+              Text('فایل: $file',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.paper,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.line),
+              ),
+              child: SelectableText(message, style: const TextStyle(height: 1.8)),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'این متن را عیناً برای پشتیبانی بفرست تا مشخص شود کدام بخش فایل خوانده نمی‌شود.',
+              style: TextStyle(color: AppColors.muted, fontSize: 12, height: 1.6),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: message));
+              Navigator.pop(ctx);
+              toast(context, 'متن خطا کپی شد');
+            },
+            child: const Text('کپی متن خطا'),
+          ),
+          FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('باشه')),
+        ],
+      ),
+    );
   }
 
   Future<void> _importFromText() async {
@@ -227,9 +281,9 @@ class _GroupsScreenState extends State<GroupsScreen> {
       await NotificationService.instance.reschedule();
       if (mounted) toast(context, '«${g.name}» با ${fa(g.courses.length)} درس ساخته شد ✦');
     } on FormatException catch (e) {
-      if (mounted) toast(context, e.message);
+      if (mounted) _showImportError(e.message);
     } catch (e) {
-      if (mounted) toast(context, 'متن خونده شد ولی ساختارش قابل استفاده نیست (${e.runtimeType})');
+      if (mounted) _showImportError('$e');
     }
   }
 
