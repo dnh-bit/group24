@@ -74,9 +74,18 @@ s|3|17.5|19.5|کلاس ۴۰۶|نظری
     expect(p.courses.length, 2);
   });
 
-  test('ساعت نامعتبر در فرمت خطی رد می‌شود', () {
-    final bad = 'PLAN|name=x\nc1|درس|درس|استاد|تخصصی|2|0\ns|0|10|9|کلاس|نظری\n';
-    expect(() => parseCompactPlan(bad), throwsFormatException);
+  test('ساعت معکوس در فرمت خطی اصلاح می‌شود، نه اینکه کل متن رد شود', () {
+    // رفتار عمدی: یک خط خرابِ ساعت نباید کل فایل ۲۰درسی را رد کند.
+    final fixed = 'PLAN|name=x\nc1|درس|درس|استاد|تخصصی|2|0\ns|0|10|9|کلاس|نظری\n';
+    final p = parseCompactPlan(fixed);
+    final s = p.courses.single.sessions.single;
+    expect(s.start, 10.0);
+    expect(s.end, greaterThan(s.start));
+  });
+
+  test('روز یا ساعت غیرقابل‌فهم در فرمت خطی رد می‌شود', () {
+    final bad = 'PLAN|name=x\nc1|درس|درس|استاد|تخصصی|2|0\ns|هیچ‌روز|نامعلوم|کلاس|نظری\n';
+    expect(() => parseCompactPlan(bad), throwsA(isA<FormatException>()));
   });
 
   test('import با فرمت خطی، برنامهٔ گروه فعال را جایگزین می‌کند', () async {

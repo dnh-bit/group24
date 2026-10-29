@@ -185,10 +185,49 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
       await NotificationService.instance.reschedule();
       if (mounted) toast(context, '${fa(n)} درس بازگردانی شد ✦');
     } on FormatException catch (e) {
-      if (mounted) toast(context, e.message);
-    } catch (_) {
-      if (mounted) toast(context, 'متن وارد شده معتبر نیست');
+      if (mounted) _showError(e.message);
+    } catch (e) {
+      if (mounted) _showError('$e');
     }
+  }
+
+  /// خطای بازگردانی را کامل و قابل کپی نشان می‌دهد (toast برای دیباگ کافی نیست).
+  void _showError(String message) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('بازگردانی انجام نشد', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.paper,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.line),
+              ),
+              child: SelectableText(message, style: const TextStyle(height: 1.8)),
+            ),
+            const SizedBox(height: 10),
+            const Text('برنامهٔ فعلی دست‌نخورده ماند.',
+                style: TextStyle(color: AppColors.muted, fontSize: 12)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: message));
+              Navigator.pop(ctx);
+              toast(context, 'متن خطا کپی شد');
+            },
+            child: const Text('کپی متن خطا'),
+          ),
+          FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('باشه')),
+        ],
+      ),
+    );
   }
 
   Future<void> _reset() async {

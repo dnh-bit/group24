@@ -9,6 +9,19 @@ import 'package:course_plan/jalali.dart';
 void main() {
   final store = ScheduleStore.instance;
 
+  test('لیست گروه‌ها قابل تغییر است (ثبت گروه جدید نمی‌شکند)', () async {
+    // باگ واقعی: در نسخهٔ خالی `const []` برمی‌گشت و addGroup با
+    // «Cannot add to an unmodifiable list» می‌افتاد.
+    final before = store.groups.length;
+    final g = await store.addGroup(name: 'تست قابلیت افزودن');
+    expect(g.name, 'تست قابلیت افزودن');
+    expect(store.groups.length, before + 1);
+    expect(store.activeGroup.id, g.id);
+    // پاک‌سازی تا بقیهٔ تست‌ها دست‌نخورده بمانند
+    await store.removeGroup(g.id);
+    expect(store.groups.length, before);
+  });
+
   test('نسخهٔ خالی: هیچ گروهی از اول نیست و ایمپورت اولین گروه را می‌سازد', () async {
     // این تست فقط در حالت EMPTY_DEFAULT معنا دارد؛ در بیلد معمولی رد می‌شود.
     if (!kEmptyDefault) return;

@@ -64,9 +64,19 @@ int _dayOf(dynamic v, int def) {
 
 int _colorOf(dynamic v) {
   if (v == null) return kCoursePalette[0];
-  if (v is num) return v.toInt();
+  if (v is num) {
+    final n = v.toInt();
+    // خروجی چت‌بات عدد کوچک می‌دهد که یعنی «شمارهٔ رنگ در پالت» (0..11)،
+    // نه مقدار ARGB. رنگ ARGB همیشه بزرگ‌تر از 0xFFFFFF است.
+    if (n >= 0 && n < kCoursePalette.length) return kCoursePalette[n];
+    if (n <= 0xFFFFFF) return kCoursePalette[0]; // مقدار بی‌معنی/شفاف
+    return n;
+  }
   var s = _str(v).replaceFirst('#', '');
   if (s.toLowerCase().startsWith('0x')) s = s.substring(2);
+  // «3» به‌صورت متن هم یعنی شمارهٔ پالت
+  final asNum = int.tryParse(s);
+  if (asNum != null) return _colorOf(asNum);
   if (s.length == 6) s = 'FF$s';
   if (s.length == 8) {
     final parsed = int.tryParse(s, radix: 16);

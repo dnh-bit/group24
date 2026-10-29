@@ -77,12 +77,14 @@ class _GroupsScreenState extends State<GroupsScreen> {
                 subtitle: 'گروه خالی؛ درس‌ها رو خودت توی ویرایشگر اضافه می‌کنی',
                 onTap: () => Navigator.pop(ctx, 'empty'),
               ),
-              _SheetTile(
-                icon: Icons.copy_rounded,
-                title: 'کپی درس‌های گروه فعال',
-                subtitle: 'همهٔ درس‌های «${_store.activeGroup.name}» کپی می‌شن',
-                onTap: () => Navigator.pop(ctx, 'copy'),
-              ),
+              // «کپی درس‌های گروه فعال» فقط وقتی گروهی هست معنا داره
+              if (_store.groups.isNotEmpty)
+                _SheetTile(
+                  icon: Icons.copy_rounded,
+                  title: 'کپی درس‌های گروه فعال',
+                  subtitle: 'همهٔ درس‌های «${_store.activeGroup.name}» کپی می‌شن',
+                  onTap: () => Navigator.pop(ctx, 'copy'),
+                ),
               _SheetTile(
                 icon: Icons.file_open_outlined,
                 title: 'از فایل پشتیبان یا خروجی چت‌بات',

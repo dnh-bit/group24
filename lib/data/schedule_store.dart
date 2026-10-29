@@ -29,13 +29,16 @@ class ScheduleStore extends ChangeNotifier {
 
   SharedPreferences? _prefs;
   List<CourseGroup> _groups = _defaultGroups();
-  String _activeId = 'g1';
+  String _activeId = _defaultGroups().isEmpty ? '' : 'g1';
 
   /// برنامهٔ پیش‌فرض: گروه ۲۴ و گروه ۲۵ در تاییدیهٔ انتخاب واحد.
   /// در نسخهٔ خالی (EMPTY_DEFAULT) هیچ گروهی از اول وجود نداره.
+  ///
+  /// توجه: لیست باید قابل تغییر (growable) باشد — `const []` غیرقابل‌تغییر است
+  /// و `addGroup` با خطای «Cannot add to an unmodifiable list» می‌شکست.
   static List<CourseGroup> _defaultGroups() {
-    if (kEmptyDefault) return const [];
-    return [
+    if (kEmptyDefault) return <CourseGroup>[];
+    return <CourseGroup>[
       CourseGroup(id: 'g1', name: kDefaultGroupName, courses: List.of(kDefaultCourses)),
       CourseGroup(id: 'g2', name: kG25GroupName, courses: List.of(kG25Courses)),
     ];
@@ -86,7 +89,9 @@ class ScheduleStore extends ChangeNotifier {
         if (list.isNotEmpty) {
           _groups = [
             CourseGroup(id: 'g1', name: kDefaultGroupName, courses: list),
-            CourseGroup(id: 'g2', name: kG25GroupName, courses: List.of(kG25Courses)),
+            // در نسخهٔ خالی نباید گروه ۲۵ تزریق شود
+            if (!kEmptyDefault)
+              CourseGroup(id: 'g2', name: kG25GroupName, courses: List.of(kG25Courses)),
           ];
           _activeId = 'g1';
           await _commit();
@@ -97,12 +102,13 @@ class ScheduleStore extends ChangeNotifier {
       }
     }
     _groups = _defaultGroups();
-    _activeId = 'g1';
+    _activeId = _groups.isEmpty ? '' : _groups.first.id;
   }
 
   /// اگر دادهٔ قدیمی فقط یک «گروه اصلی» داشت، نامش را به
   /// «برنامه درسی گروه ۲۴» درمی‌آوریم و گروه ۲۵ را هم اضافه می‌کنیم.
   Future<void> _migrateOldDefault() async {
+    if (kEmptyDefault) return; // نسخهٔ خالی هیچ گروه پیش‌فرضی نمی‌سازد
     if (_groups.length == 1 && _groups.first.name == 'گروه اصلی') {
       _groups[0] = _groups[0].copyWith(name: kDefaultGroupName);
       _groups.add(CourseGroup(id: 'g2', name: kG25GroupName, courses: List.of(kG25Courses)));
@@ -177,6 +183,22 @@ class ScheduleStore extends ChangeNotifier {
   }
 
   Future<void> _setCourses(List<Course> list) async {
+    // شناسه‌های تکراری/خالی را یکتا کن — فایل چت‌بات اغلب id تکراری دارد و
+    // بعداً ویرایش/حذف درس را خراب می‌کند.
+    final seen = <int>{};
+    final safe = <Course>[];
+    for (var j = 0; j < list.length; j++) {
+      var c = list[j];
+      var id = c.id;
+      if (id <= 0 || seen.contains(id)) id = j + 1;
+      while (seen.contains(id)) {
+        id++;
+      }
+      seen.add(id);
+      if (c.id != id) c = c.copyWith(id: id);
+      safe.add(c);
+    }
+
     var i = _groups.indexWhere((g) => g.id == _activeId);
     if (i < 0) {
       // نسخهٔ خالی / گروه حذف‌شده: بی‌صدا دور نریز — یک گروه بساز.
@@ -184,7 +206,7 @@ class ScheduleStore extends ChangeNotifier {
       i = _groups.indexWhere((g2) => g2.id == g.id);
       if (i < 0) return;
     }
-    _groups[i] = _groups[i].copyWith(courses: list);
+    _groups[i] = _groups[i].copyWith(courses: safe);
     await _commit();
   }
 
@@ -239,9 +261,10 @@ class ScheduleStore extends ChangeNotifier {
   }
 
   /// همهٔ گروه‌ها را پاک و فقط گروه‌های پیش‌فرض (۲۴ و ۲۵) را برمی‌گردونه.
+  /// در نسخهٔ خالی هیچ گروهی برنمی‌گردد و لیست خالی قابل تغییر می‌ماند.
   Future<void> resetAllGroups() async {
     _groups = _defaultGroups();
-    _activeId = 'g1';
+    _activeId = _groups.isEmpty ? '' : _groups.first.id;
     await _commit();
   }
 
@@ -268,33 +291,149 @@ class ScheduleStore extends ChangeNotifier {
   }
 
   /// فقط پارس می‌کند و هیچ داده‌ای را تغییر نمی‌دهد (تست/پیش‌نمایش).
+  /// روی همان مسیر واحد ایمپورت کار می‌کند تا رفتار تست و اپ یکی باشد.
   List<Course> parseCoursesOnly(String text) {
+    // آرایهٔ خالی = برنامهٔ بدون درس (در ایمپورت رد می‌شود، در پارس مجاز است)
+    final trimmed = text.trim();
+    if (trimmed == '[]' || trimmed == '[ ]') return const [];
+    return parseAnyToGroups(text).groups.first.courses;
+  }
+
+  /// یک نقطهٔ ورود برای همهٔ قالب‌های ممکن (کد CP2، فرمت خطی چت‌بات،
+  /// پشتیبان کامل، تک‌گروه، آرایهٔ درس‌ها، آرایهٔ گروه‌ها) — خروجی: گروه‌ها.
+  ///
+  /// همهٔ ایمپورت‌ها از همین‌جا رد می‌شوند تا هیچ مسیری از اصلاحات جا نماند.
+  ({List<CourseGroup> groups, String suggestedName, String? activeGroupId, bool isFullBackup})
+      parseAnyToGroups(String rawText) {
+    var text = rawText;
+
+    // ۱) کد کوتاه پشتیبان
     final decoded = tryDecodeBackupCode(text);
     if (decoded != null) text = decoded;
-    if (isCompactPlanText(text)) return parseCompactPlan(text).courses;
+
+    // ۲) فرمت خطی کوتاه چت‌بات
+    if (isCompactPlanText(text)) {
+      final p = parseCompactPlan(text);
+      if (p.courses.isEmpty) throw const FormatException('هیچ درسی پیدا نشد');
+      return (
+        groups: [
+          CourseGroup(id: 'g1', name: p.name.isEmpty ? kDefaultGroupName : p.name, courses: p.courses)
+        ],
+        suggestedName: p.name,
+        activeGroupId: 'g1',
+        isFullBackup: false,
+      );
+    }
 
     final data = _safeJson(text);
     if (data == null) {
-      throw const FormatException('فایل JSON سالم نیست (ساختار شکسته یا ناقصه)');
+      throw const FormatException(
+          'فایل JSON سالم نیست (ساختار شکسته یا ناقصه) — دوباره از مبدأ کپی/دانلود کن');
     }
-    // آرایهٔ خالی = برنامهٔ بدون درس (در ایمپورت رد می‌شود، در پارس مجاز است)
-    if (data is List && data.isEmpty) return const [];
 
-    final map = data is Map
+    final Map<String, dynamic>? map = data is Map
         ? <String, dynamic>{
             for (final e in data.entries) e.key.toString().toLowerCase(): e.value,
             for (final e in data.entries) e.key.toString(): e.value,
           }
         : null;
 
-    if (map != null && (map['groups'] is List || map['گروه‌ها'] is List)) {
-      final groups = _decodeGroups(text);
-      return groups.isEmpty ? const [] : groups.first.courses;
+    // ۳) پشتیبان کاملِ همهٔ گروه‌ها
+    final rawGroups = map?['groups'] ?? map?['گروه‌ها'];
+    if (rawGroups is List) {
+      final groups = [
+        for (final g in rawGroups)
+          if (g is Map) CourseGroup.fromJson(Map<String, dynamic>.from(g)),
+      ];
+      if (groups.isEmpty) throw const FormatException('فایل هیچ گروهی ندارد');
+      final fixed = _normalizeGroupIds(groups);
+      _validateGroups(fixed);
+      return (
+        groups: fixed,
+        suggestedName: fixed.first.name,
+        activeGroupId: (map?['activeGroupId'] ?? map?['فعال'])?.toString(),
+        isFullBackup: true,
+      );
     }
+
+    // ۴) تک‌گروه زیر کلید group
     if (map != null && map['group'] is Map) {
-      return CourseGroup.fromJson(Map<String, dynamic>.from(map['group'] as Map)).courses;
+      final g = CourseGroup.fromJson(Map<String, dynamic>.from(map['group'] as Map));
+      _validateCourses(g.courses, g.name);
+      return (groups: [g], suggestedName: g.name, activeGroupId: g.id, isFullBackup: false);
     }
-    return _decodeCourses(text);
+
+    // ۵) آرایهٔ بدون پوشش: گروه‌ها یا درس‌ها؟
+    if (data is List) {
+      if (data.isEmpty) throw const FormatException('فایل هیچ درسی ندارد');
+      final looksLikeGroups = data.every((e) =>
+          e is Map && (_pickMapKey(e, ['courses', 'lessons', 'درس‌ها', 'جلسات']) is List));
+      if (looksLikeGroups) {
+        final groups = [
+          for (final g in data)
+            if (g is Map) CourseGroup.fromJson(Map<String, dynamic>.from(g)),
+        ];
+        final fixed = _normalizeGroupIds(groups);
+        _validateGroups(fixed);
+        return (
+          groups: fixed,
+          suggestedName: fixed.first.name,
+          activeGroupId: fixed.first.id,
+          isFullBackup: true,
+        );
+      }
+    }
+
+    // ۶) فهرست درس‌ها (با پوشش courses یا مستقیم)
+    final courses = _decodeCourses(text);
+    _validateCourses(courses, 'درس');
+    var nm = '';
+    if (map != null) {
+      nm = (map['name'] ?? map['title'] ?? map['نام'] ?? '').toString().trim();
+      // خروجی چت‌بات نام گروه را داخل {"plan":{"name":…}} می‌گذارد
+      if (nm.isEmpty && map['plan'] is Map) {
+        final p = map['plan'] as Map;
+        nm = (p['name'] ?? p['نام'] ?? p['title'] ?? '').toString().trim();
+      }
+    }
+    return (
+      groups: [
+        CourseGroup(id: 'g1', name: nm.isEmpty ? kDefaultGroupName : nm, courses: courses)
+      ],
+      suggestedName: nm,
+      activeGroupId: 'g1',
+      isFullBackup: false,
+    );
+  }
+
+  /// شناسه‌های گروه را یکتا و غیرخالی می‌کند (فایل دست‌ساز اغلب تکراری دارد).
+  List<CourseGroup> _normalizeGroupIds(List<CourseGroup> groups) {
+    final used = <String>{};
+    final out = <CourseGroup>[];
+    for (var i = 0; i < groups.length; i++) {
+      final g = groups[i];
+      var id = g.id.trim();
+      if (id.isEmpty || used.contains(id)) id = 'g${i + 1}';
+      while (used.contains(id)) {
+        id = '${id}_';
+      }
+      used.add(id);
+      out.add(g.id == id ? g : g.copyWith(id: id));
+    }
+    return out;
+  }
+
+  static dynamic _pickMapKey(dynamic m, List<String> keys) {
+    if (m is! Map) return null;
+    for (final k in keys) {
+      if (m.containsKey(k) && m[k] != null) return m[k];
+    }
+    final lower = {for (final e in m.entries) e.key.toString().toLowerCase(): e.value};
+    for (final k in keys) {
+      final v = lower[k.toLowerCase()];
+      if (v != null) return v;
+    }
+    return null;
   }
 
   /// ارقام فارسی/عربی را فقط بیرون از رشته‌ها به لاتین تبدیل می‌کند
@@ -353,42 +492,27 @@ class ScheduleStore extends ChangeNotifier {
 
   /// متن JSON رو جایگزین برنامهٔ فعلی می‌کنه. تعداد درس‌ها رو برمی‌گردونه.
   ///
-  /// هم پشتیبان کامل (همهٔ گروه‌ها) و هم فایل تک‌گروهی و هم فرمت قدیمی
-  /// نسخهٔ ۰.۰.۱ پذیرفته می‌شه. قبل از جایگزینی همه‌چیز اعتبارسنجی می‌شه تا
-  /// فایل نیم‌باطل، نیمهٔ درست برنامه رو نابود نکنه.
+  /// همهٔ قالب‌ها از `parseAnyToGroups` می‌گذرند، پس هیچ فرمتی بدون اعتبارسنجی
+  /// جایگزین نمی‌شود.
   Future<int> importJson(String text) async {
-    // کد کوتاه پشتیبان (CP2:) → JSON اصلی
-    final decoded = tryDecodeBackupCode(text);
-    if (decoded != null) text = decoded;
+    final parsed = parseAnyToGroups(text);
 
-    // فرمت خطی کوتاه (خروجی چت‌بات)
-    if (isCompactPlanText(text)) {
-      final p = parseCompactPlan(text);
-      _validateCourses(p.courses, p.name.isEmpty ? 'درس' : p.name);
-      await _setCourses(p.courses);
-      return p.courses.length;
+    // پشتیبان کامل → همهٔ گروه‌ها جایگزین می‌شوند.
+    // تک‌گروه / فهرست درس‌ها / فرمت خطی → فقط درس‌های گروه فعال.
+    if (!parsed.isFullBackup) {
+      final courses = parsed.groups.first.courses;
+      if (courses.isEmpty) throw const FormatException('هیچ درسی پیدا نشد');
+      await _setCourses(courses);
+      return courses.length;
     }
 
-    final data = jsonDecode(extractJson(text)); // BOM ویندوزی و بلوک کد چت‌بات‌ها پاک می‌شه
-
-    // فرمت جدید: همهٔ گروه‌ها
-    if (data is Map && data['groups'] is List) {
-      final groups = _decodeGroups(text);
-      _validateGroups(groups);
-      if (groups.isEmpty) throw const FormatException('هیچ گروهی پیدا نشد');
-      _groups = groups;
-      final wanted = data['activeGroupId']?.toString();
-      _activeId = _groups.any((g) => g.id == wanted) ? wanted! : _groups.first.id;
-      await _commit();
-      return _groups.fold<int>(0, (s, g) => s + g.courses.length);
-    }
-
-    // تک‌گروه یا فرمت قدیمی
-    final list = _decodeCourses(text);
-    _validateCourses(list, 'درس');
-    if (list.isEmpty) throw const FormatException('هیچ درسی پیدا نشد');
-    await _setCourses(list);
-    return list.length;
+    _groups = List<CourseGroup>.of(parsed.groups);
+    final wanted = parsed.activeGroupId;
+    _activeId = (wanted != null && _groups.any((g) => g.id == wanted))
+        ? wanted
+        : _groups.first.id;
+    await _commit();
+    return _groups.fold<int>(0, (s, g) => s + g.courses.length);
   }
 
   void _validateGroups(List<CourseGroup> groups) {
@@ -458,7 +582,13 @@ class ScheduleStore extends ChangeNotifier {
     for (var i = 0; i < list.length; i++) {
       final item = list[i];
       if (item is! Map) continue;
-      final c = Course.fromJson(Map<String, dynamic>.from(item));
+      final m = Map<String, dynamic>.from(item);
+      // درسی که هیچ نامی ندارد، داده‌ی معتبر نیست — نباید جای درس‌های واقعی
+      // را بگیرد («درس بدون نام» فقط برای رکوردهای ناقص داخل فایل خوب است).
+      final hasName = ['name', 'title', 'نام', 'درس']
+          .any((k) => m[k] != null && m[k].toString().trim().isNotEmpty);
+      if (!hasName) continue;
+      final c = Course.fromJson(m);
       out.add(c.id > 0 ? c : c.copyWith(id: i + 1));
     }
     if (out.isEmpty) throw const FormatException('هیچ درسی توی فایل پیدا نشد');
@@ -488,66 +618,13 @@ class ScheduleStore extends ChangeNotifier {
   ///
   /// [name] خالی باشد از نام فایل JSON (کلید name) یا پیش‌فرض استفاده می‌شود.
   Future<CourseGroup> importAsNewGroup(String text, {String name = ''}) async {
-    final decoded = tryDecodeBackupCode(text);
-    if (decoded != null) text = decoded;
-
-    // فرمت خطی کوتاه (خروجی چت‌بات)
-    if (isCompactPlanText(text)) {
-      final p = parseCompactPlan(text);
-      _validateCourses(p.courses, p.name.isEmpty ? 'درس' : p.name);
-      final label = name.trim().isNotEmpty ? name.trim() : p.name;
-      final group = await addGroup(name: label);
-      await _setCourses(p.courses);
-      return group.copyWith(courses: p.courses);
-    }
-
-    final data = _safeJson(text);
-    if (data == null) {
-      throw const FormatException('فایل JSON سالم نیست (ساختار شکسته یا ناقصه)');
-    }
-    // کلیدهای با حروف بزرگ/کوچک یا فارسی
-    Map<String, dynamic>? map;
-    if (data is Map) {
-      map = {for (final e in data.entries) e.key.toString().toLowerCase(): e.value};
-      for (final e in data.entries) {
-        map.putIfAbsent(e.key.toString(), () => e.value);
-      }
-    }
-
-    List<Course> courses;
-    String suggested;
-
-    // فایل کاملِ همهٔ گروه‌ها
-    if (map != null && (map['groups'] is List || map['گروه‌ها'] is List)) {
-      final groups = _decodeGroups(text);
-      _validateGroups(groups);
-      courses = groups.first.courses;
-      suggested = groups.first.name;
-    } else if (map != null && map['group'] is Map) {
-      final g = CourseGroup.fromJson(Map<String, dynamic>.from(map['group'] as Map));
-      _validateCourses(g.courses, g.name);
-      courses = g.courses;
-      suggested = g.name;
-    } else if (map != null && map['courses'] is List) {
-      courses = _decodeCourses(text);
-      _validateCourses(courses, 'درس');
-      suggested = '';
-    } else if (data is List &&
-        data.isNotEmpty &&
-        data.every((e) => e is List || (e is Map && (e['courses'] is List || e['lessons'] is List)))) {
-      // آرایهٔ گروه‌ها بدون پوشش {groups: …}
-      final g = CourseGroup.fromJson(Map<String, dynamic>.from(data.first as Map));
-      _validateCourses(g.courses, g.name);
-      courses = g.courses;
-      suggested = g.name;
-    } else {
-      courses = _decodeCourses(text);
-      _validateCourses(courses, 'درس');
-      suggested = '';
-    }
+    final parsed = parseAnyToGroups(text);
+    final courses = parsed.groups.first.courses;
     if (courses.isEmpty) throw const FormatException('هیچ درسی پیدا نشد');
 
-    final label = name.trim().isNotEmpty ? name.trim() : suggested;
+    final label = name.trim().isNotEmpty
+        ? name.trim()
+        : (parsed.suggestedName.trim().isNotEmpty ? parsed.suggestedName.trim() : '');
     final group = await addGroup(name: label);
     await _setCourses(courses);
     return group.copyWith(courses: courses);
