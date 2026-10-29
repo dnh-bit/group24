@@ -5,7 +5,7 @@ import sys
 
 DAY_NAMES = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه']
 PALETTE_LEN = 12
-COURSE_RE = re.compile(r'^c(\d+)\|')
+COURSE_RE = re.compile(r'^c[0-9\u06F0-\u06F9\u0660-\u0669]+\|')
 HEAD_RE = re.compile(r'^PLAN\b')
 
 

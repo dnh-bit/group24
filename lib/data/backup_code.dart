@@ -42,7 +42,8 @@ String? tryDecodeBackupCode(String raw) {
 // پارسر عمداً سخاوتمند است: ارقام فارسی/عربی، نام روز، ساعت «۰۸:۰۰»،
 // بازهٔ «۸-۱۰» در یک ستون و ستون‌های کم‌شده را هم می‌پذیرد.
 
-final _compactCourseRe = RegExp(r'^c(\d+)\|');
+// \d در Dart فقط ارقام لاتین را می‌گیرد؛ چت‌بات اغلب «c۱|» می‌فرستد.
+final _compactCourseRe = RegExp(r'^c[0-9۰-۹٠-٩]+\|');
 final _compactHeadRe = RegExp(r'^PLAN\b');
 
 // ── کمکی‌های تحمل‌پذیر ──
