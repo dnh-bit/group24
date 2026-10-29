@@ -119,9 +119,9 @@ class Session {
       start: start.clamp(0.0, 24.0),
       end: end.clamp(0.0, 24.0),
       room: _str(_pick(j, ['room', 'کلاس', 'place', 'location'])),
-      type: _str(_pick(j, ['t', 'type', 'نوع']), 'نظری').isEmpty
+      type: _str(_pick(j, ['t', 'type', 'نوع'])).isEmpty
           ? 'نظری'
-          : _str(_pick(j, ['t', 'type', 'نوع']), 'نظری'),
+          : _str(_pick(j, ['t', 'type', 'نوع'])),
     );
   }
 }
@@ -258,16 +258,15 @@ class Course {
   factory Course.fromJson(Map<String, dynamic> j) {
     final exam = _pick(j, ['exam', 'امتحان']);
     final sessions = _pick(j, ['sessions', 'classes', 'جلسات', 'times']);
-    final name = _str(_pick(j, ['name', 'title', 'نام', 'درس']), 'درس بدون نام');
+    final name = _str(_pick(j, ['name', 'title', 'نام', 'درس']));
+    final kind = _str(_pick(j, ['kind', 'نوع']));
     return Course(
       id: _int(_pick(j, ['id', 'شناسه']), 0),
       name: name.isEmpty ? 'درس بدون نام' : name,
       short: _str(_pick(j, ['short', 'کوتاه', 'shortName'])),
       tiny: _pick(j, ['tiny']) == null ? null : _str(_pick(j, ['tiny'])),
       prof: _str(_pick(j, ['prof', 'professor', 'teacher', 'استاد'])),
-      kind: _str(_pick(j, ['kind', 'نوع'], 'تخصصی'), 'تخصصی').isEmpty
-          ? 'تخصصی'
-          : _str(_pick(j, ['kind', 'نوع'], 'تخصصی'), 'تخصصی'),
+      kind: kind.isEmpty ? 'تخصصی' : kind,
       units: _int(_pick(j, ['units', 'واحد', 'credits']), 2),
       colorValue: _colorOf(_pick(j, ['color', 'رنگ', 'colorValue'])),
       exam: exam is Map ? Exam.fromJson(Map<String, dynamic>.from(exam)) : null,
