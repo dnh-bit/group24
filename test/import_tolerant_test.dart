@@ -9,6 +9,21 @@ import 'package:course_plan/jalali.dart';
 void main() {
   final store = ScheduleStore.instance;
 
+  test('نسخهٔ خالی: هیچ گروهی از اول نیست و ایمپورت اولین گروه را می‌سازد', () async {
+    // این تست فقط در حالت EMPTY_DEFAULT معنا دارد؛ در بیلد معمولی رد می‌شود.
+    if (!kEmptyDefault) return;
+    expect(store.groups, isEmpty);
+    expect(store.activeGroup.id, '', reason: 'گروه مجازی');
+    final g = await store.importAsNewGroup(
+      '{"courses":[{"id":1,"name":"فلسفه","units":2,'
+      '"sessions":[{"d":0,"s":8,"e":10}]}]}',
+      name: 'ترم اول',
+    );
+    expect(g.name, 'ترم اول');
+    expect(store.groups.length, 1);
+    expect(store.activeGroup.courses.single.name, 'فلسفه');
+  });
+
   test('آرایهٔ خالی نیست و ساختارهای رایج پذیرفته می‌شوند', () {
     expect(store.parseCoursesOnly('[]'), isEmpty);
   });

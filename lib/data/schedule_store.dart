@@ -177,8 +177,13 @@ class ScheduleStore extends ChangeNotifier {
   }
 
   Future<void> _setCourses(List<Course> list) async {
-    final i = _groups.indexWhere((g) => g.id == _activeId);
-    if (i < 0) return;
+    var i = _groups.indexWhere((g) => g.id == _activeId);
+    if (i < 0) {
+      // نسخهٔ خالی / گروه حذف‌شده: بی‌صدا دور نریز — یک گروه بساز.
+      final g = await addGroup();
+      i = _groups.indexWhere((g2) => g2.id == g.id);
+      if (i < 0) return;
+    }
     _groups[i] = _groups[i].copyWith(courses: list);
     await _commit();
   }
