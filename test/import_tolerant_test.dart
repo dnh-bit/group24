@@ -59,7 +59,7 @@ void main() {
     expect(list.length, 2);
     expect(list[0].units, 2);
     expect(list[0].id, 1);
-    expect(list[0].colorValue, 0xFF648C16);
+    expect(list[0].colorValue, kCoursePalette[0]);
   });
 
   test('گروه کامل زیر کلید group', () {
