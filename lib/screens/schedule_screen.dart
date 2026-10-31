@@ -484,8 +484,10 @@ class _SessionCard extends StatelessWidget {
                                   style: const TextStyle(
                                       color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
                             ),
-                            if (c.muted)
-                              const Icon(Icons.notifications_off_rounded, size: 16, color: Colors.white),
+                            if (!c.alertsOn || c.muted)
+                              const Icon(Icons.notifications_off_rounded, size: 16, color: Colors.white)
+                            else if (c.alert == CourseAlert.notice)
+                              const Icon(Icons.notifications_outlined, size: 16, color: Colors.white),
                           ],
                         ),
                         const SizedBox(height: 4),

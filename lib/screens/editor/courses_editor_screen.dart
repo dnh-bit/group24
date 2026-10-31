@@ -38,9 +38,18 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
     );
   }
 
-  Future<void> _toggleMuted(Course c, bool on) async {
-    await _store.setMuted(c.id, !on);
+  /// چرخهٔ اعلان درس: آلارم → اعلان → خاموش → آلارم
+  Future<void> _cycleAlert(Course c) async {
+    final next = c.alert.next;
+    await _store.updateCourse(c.copyWith(alert: next, muted: next == CourseAlert.off));
     await NotificationService.instance.reschedule();
+    if (mounted) {
+      toast(context, next == CourseAlert.off
+          ? 'اعلان «${c.shortName}» خاموش شد'
+          : next == CourseAlert.notice
+              ? '«${c.shortName}» فقط اعلان می‌گیرد'
+              : '«${c.shortName}» آلارم می‌زند');
+    }
   }
 
   Future<void> _copy() async {
@@ -346,7 +355,7 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
               padding: EdgeInsets.all(24),
               child: Center(child: Text('چیزی پیدا نشد', style: TextStyle(color: AppColors.muted))),
             ),
-          for (final c in list) _CourseTile(course: c, onTap: () => _open(c), onMuted: (on) => _toggleMuted(c, on)),
+          for (final c in list) _CourseTile(course: c, onTap: () => _open(c), onMuted: (_) => _cycleAlert(c)),
         ],
       ),
     );
@@ -378,7 +387,7 @@ class _Stat extends StatelessWidget {
 class _CourseTile extends StatelessWidget {
   final Course course;
   final VoidCallback onTap;
-  final ValueChanged<bool> onMuted;
+  final ValueChanged<Course> onMuted;
   const _CourseTile({required this.course, required this.onTap, required this.onMuted});
 
   @override
@@ -425,12 +434,20 @@ class _CourseTile extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(left: 4),
                   child: IconButton(
-                    tooltip: c.muted ? 'یادآوری خاموشه' : 'یادآوری روشنه',
+                    tooltip: 'اعلان: ${c.alert.label}',
                     icon: Icon(
-                      c.muted ? Icons.notifications_off_outlined : Icons.notifications_active_rounded,
-                      color: c.muted ? AppColors.muted : AppColors.saffron,
+                      switch (c.alert) {
+                        CourseAlert.alarm => Icons.alarm_on_rounded,
+                        CourseAlert.notice => Icons.notifications_active_outlined,
+                        CourseAlert.off => Icons.notifications_off_outlined,
+                      },
+                      color: switch (c.alert) {
+                        CourseAlert.alarm => AppColors.saffron,
+                        CourseAlert.notice => AppColors.olive,
+                        CourseAlert.off => AppColors.muted,
+                      },
                     ),
-                    onPressed: () => onMuted(c.muted),
+                    onPressed: () => onMuted(c),
                   ),
                 ),
               ],

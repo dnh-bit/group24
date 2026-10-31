@@ -40,6 +40,26 @@ int _int(dynamic v, int def) {
   return int.tryParse(s) ?? double.tryParse(s)?.toInt() ?? def;
 }
 
+/// حالت اعلان درس را از فایل می‌خواند.
+/// کلیدهای پذیرفته‌شده: alert / notify / هشدار، و مقدارها:
+/// alarm/آلارم/زنگ، notice/اعلان/notification/پیام، off/خاموش/silent/none.
+/// فایل‌های قدیمی فقط `muted` دارند → خاموش.
+CourseAlert _alertOf(Map j) {
+  final v = _pick(j, ['alert', 'notify', 'alertMode', 'هشدار', 'اعلان']);
+  if (v != null) {
+    final s = _normDigits(v.toString()).toLowerCase().trim();
+    const alarmWords = {'alarm', 'alarmmode', 'ring', 'آلارم', 'زنگ', 'هشدار'};
+    const noticeWords = {'notice', 'notification', 'notify', 'پیام', 'اعلان', 'ساده', 'noticeonly'};
+    const offWords = {'off', 'none', 'silent', 'mute', 'muted', 'خاموش', 'بی‌صدا', 'هیچ'};
+    if (alarmWords.contains(s)) return CourseAlert.alarm;
+    if (noticeWords.contains(s)) return CourseAlert.notice;
+    if (offWords.contains(s)) return CourseAlert.off;
+  }
+  // سازگاری با فایل‌های قدیمی
+  if (_bool(_pick(j, ['muted']), false)) return CourseAlert.off;
+  return CourseAlert.alarm;
+}
+
 /// بولین تحمل‌پذیر: true/false، ۱/۰، "بله"/"خیر"، "on"/"off"
 bool _bool(dynamic v, bool def) {
   if (v == null) return def;
@@ -220,6 +240,34 @@ class Exam {
   }
 }
 
+/// هر درس یکی از این سه حالت را دارد. «فقط اعلان» یعنی نوتیفیکیشن ساده
+/// (بدون زنگ و بدون تمام‌صفحه)، «آلارم» یعنی اعلان تمام‌صفحه با زنگ.
+enum CourseAlert {
+  alarm,
+  notice,
+  off,
+}
+
+extension CourseAlertLabel on CourseAlert {
+  String get label => switch (this) {
+        CourseAlert.alarm => 'آلارم',
+        CourseAlert.notice => 'فقط اعلان',
+        CourseAlert.off => 'خاموش',
+      };
+
+  String get hint => switch (this) {
+        CourseAlert.alarm => 'تمام‌صفحه با زنگ و لرزش — تا خاموشش نکنی صدا می‌ده',
+        CourseAlert.notice => 'یک نوتیفیکیشن ساده در نوار وضعیت، بدون زنگ',
+        CourseAlert.off => 'هیچ اعلانی برای این درس نمی‌آید',
+      };
+
+  CourseAlert get next => switch (this) {
+        CourseAlert.alarm => CourseAlert.notice,
+        CourseAlert.notice => CourseAlert.off,
+        CourseAlert.off => CourseAlert.alarm,
+      };
+}
+
 class Course {
   final int id;
   final String name;
@@ -232,7 +280,10 @@ class Course {
   final Exam? exam;
   final List<Session> sessions;
   final String note;
-  final bool muted; // یادآوری‌های این درس خاموش
+  final bool muted; // (قدیمی) یادآوری‌های این درس خاموش — از alert استفاده کن
+
+  /// حالت اعلان این درس: آلارم / فقط اعلان / خاموش.
+  final CourseAlert alert;
 
   /// چند دقیقه قبل از کلاس آلارم بزند؛ null = از تنظیم کلی استفاده کن.
   final int? alarmMinutes;
@@ -250,6 +301,7 @@ class Course {
     this.sessions = const [],
     this.note = '',
     this.muted = false,
+    this.alert = CourseAlert.alarm,
     this.alarmMinutes,
   });
 
@@ -271,6 +323,7 @@ class Course {
     List<Session>? sessions,
     String? note,
     bool? muted,
+    CourseAlert? alert,
     int? alarmMinutes,
     bool clearAlarmMinutes = false,
   }) =>
@@ -287,8 +340,12 @@ class Course {
         sessions: sessions ?? this.sessions,
         note: note ?? this.note,
         muted: muted ?? this.muted,
+        alert: alert ?? this.alert,
         alarmMinutes: clearAlarmMinutes ? null : (alarmMinutes ?? this.alarmMinutes),
       );
+
+  /// اعلان این درس روشن است؟ (هر دو حالت آلارم و اعلان)
+  bool get alertsOn => alert != CourseAlert.off;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -303,6 +360,7 @@ class Course {
         'sessions': [for (final s in sessions) s.toJson()],
         'note': note,
         'muted': muted,
+        'alert': alert.name,
         if (alarmMinutes != null) 'alarmMinutes': alarmMinutes,
       };
 
@@ -332,7 +390,8 @@ class Course {
         final n = _int(v, -1);
         return n < 0 ? null : n.clamp(0, 180).toInt();
       }(),
-      muted: _pick(j, ['muted']) == true,
+      muted: _alertOf(j) == CourseAlert.off,
+      alert: _alertOf(j),
     );
   }
 }

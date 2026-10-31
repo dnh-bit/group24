@@ -190,8 +190,13 @@ class NotificationService {
   static int _examId(int courseSlot, int kind) => 200000 + courseSlot * 2 + kind;
 
   /// آیا این اعلان باید به‌شکل آلارم (تمام‌صفحه) بیاید؟
-  bool _alarmWanted({required bool isExam}) {
+  ///
+  /// [courseAlert] حالت خود درس است؛ اگر درس روی «فقط اعلان» باشد هرگز
+  /// آلارم نمی‌شود، حتی اگر آلارم کلی روشن باشد.
+  bool _alarmWanted({required bool isExam, CourseAlert? courseAlert}) {
     final s = SettingsService.instance.settings;
+    if (courseAlert == CourseAlert.notice) return false;
+    if (courseAlert == CourseAlert.off) return false;
     if (!s.fullScreenAlarm) return false;
     if (s.alarmSound == AlarmSound.silent) return false;
     if (isExam && !s.examFullAlarm) return false;
@@ -319,8 +324,8 @@ class NotificationService {
     return v.clamp(0, SettingsService.maxMinutes).toInt();
   }
 
-  /// آیا این درس اصلاً اعلان بگیرد؟
-  static bool courseEnabled(Course c) => !c.muted;
+  /// آیا این درس اصلاً اعلان بگیرد؟ (آلارم یا اعلان ساده)
+  static bool courseEnabled(Course c) => c.alertsOn && !c.muted;
 
   /// آیا این جلسه اعلان بگیرد؟ (درس روشن + جلسه روشن + تک‌ساعته نباشد)
   bool sessionAlarmEnabled(Course c, Session se) {
@@ -362,7 +367,7 @@ class NotificationService {
         if (ci == null) continue;
 
         final mins = minutesFor(c);
-        final isAlarm = _alarmWanted(isExam: false);
+        final isAlarm = _alarmWanted(isExam: false, courseAlert: c.alert);
 
         await _plugin.zonedSchedule(
           _sessionId(ci, ref.index),
@@ -384,7 +389,7 @@ class NotificationService {
       for (var ci = 0; ci < notifGroup.courses.length && ci < _maxCourses; ci++) {
         final c = notifGroup.courses[ci];
         final e = c.exam;
-        if (e == null || c.muted) continue;
+        if (e == null || !courseEnabled(c)) continue;
         final g = e.gregorian;
         final where = e.place.isEmpty ? '' : ' · ${e.place}';
         final alarmMins = s.examAlarmMinutes.clamp(0, 180).toInt();
@@ -421,7 +426,7 @@ class NotificationService {
                 : '${fa(alarmMins)} دقیقه تا امتحان ${c.shortName}',
             'ساعت ${fmtTime(e.start)}$where · موفق باشی ✦',
             alarmAt,
-            _details(isAlarm: _alarmWanted(isExam: true), isExam: true),
+            _details(isAlarm: _alarmWanted(isExam: true, courseAlert: c.alert), isExam: true),
             androidScheduleMode: mode,
             payload: 'exam:${c.id}',
           );
@@ -475,14 +480,12 @@ class NotificationService {
     return _maxCourses - 1;
   }
 
+  /// درسِ مربوط به یک اعلان. اعلان‌ها فقط از گروهِ اعلان‌ها می‌آیند، پس
+  /// فقط همان گروه را می‌گردیم — دو گروه می‌توانند id یکسان داشته باشند و
+  /// جست‌وجو در بقیهٔ گروه‌ها درس اشتباه را برمی‌گرداند.
   Course? _findCourse(int id) {
     for (final c in ScheduleStore.instance.groupForNotifications().courses) {
       if (c.id == id) return c;
-    }
-    for (final g in ScheduleStore.instance.groups) {
-      for (final c in g.courses) {
-        if (c.id == id) return c;
-      }
     }
     return null;
   }

@@ -237,11 +237,6 @@ class ScheduleStore extends ChangeNotifier {
     await _setCourses(list);
   }
 
-  Future<void> setMuted(int id, bool muted) async {
-    final c = byId(id);
-    if (c != null) await upsert(c.copyWith(muted: muted));
-  }
-
   /// یک درس را در یک گروه مشخص به‌روز می‌کند.
   ///
   /// [groupId] را همیشه بده: دو گروه می‌توانند درس‌هایی با **همان id** داشته

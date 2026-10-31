@@ -57,6 +57,75 @@ void main() {
     });
   });
 
+  group('حالت اعلان هر درس (آلارم / اعلان / خاموش)', () {
+    test('پیش‌فرض هر درس «آلارم» است', () {
+      final c = Course(id: 1, name: 'ریاضی', colorValue: kCoursePalette[0]);
+      expect(c.alert, CourseAlert.alarm);
+      expect(c.alertsOn, isTrue);
+    });
+
+    test('«فقط اعلان» روشن است ولی آلارم نمی‌زند', () {
+      final c = Course(id: 1, name: 'ریاضی', colorValue: kCoursePalette[0], alert: CourseAlert.notice);
+      expect(c.alertsOn, isTrue);
+      expect(c.alert, CourseAlert.notice);
+    });
+
+    test('«خاموش» هیچ اعلانی نمی‌گیرد', () {
+      final c = Course(id: 1, name: 'ریاضی', colorValue: kCoursePalette[0], alert: CourseAlert.off);
+      expect(c.alertsOn, isFalse);
+    });
+
+    test('حالت در JSON ذخیره و بازگردانی می‌شود', () {
+      for (final a in CourseAlert.values) {
+        final c = Course(id: 1, name: 'x', colorValue: kCoursePalette[0], alert: a);
+        final back = Course.fromJson(c.toJson());
+        expect(back.alert, a, reason: 'حالت ${a.name} گم شد');
+      }
+    });
+
+    test('حالت از فایل چت‌بات با کلمات فارسی/انگلیسی خوانده می‌شود', () {
+      Map<String, dynamic> base(String v) => {'id': 1, 'name': 'x', 'color': 0, 'alert': v};
+      expect(Course.fromJson(base('alarm')).alert, CourseAlert.alarm);
+      expect(Course.fromJson(base('آلارم')).alert, CourseAlert.alarm);
+      expect(Course.fromJson(base('زنگ')).alert, CourseAlert.alarm);
+      expect(Course.fromJson(base('notice')).alert, CourseAlert.notice);
+      expect(Course.fromJson(base('اعلان')).alert, CourseAlert.notice);
+      expect(Course.fromJson(base('notification')).alert, CourseAlert.notice);
+      expect(Course.fromJson(base('off')).alert, CourseAlert.off);
+      expect(Course.fromJson(base('خاموش')).alert, CourseAlert.off);
+      expect(Course.fromJson(base('silent')).alert, CourseAlert.off);
+    });
+
+    test('فایل قدیمی که فقط muted دارد → خاموش', () {
+      final c = Course.fromJson({'id': 1, 'name': 'x', 'color': 0, 'muted': true});
+      expect(c.alert, CourseAlert.off);
+      expect(c.alertsOn, isFalse);
+      // و فایل بدون هیچ کلیدی → آلارم
+      expect(Course.fromJson({'id': 2, 'name': 'y', 'color': 0}).alert, CourseAlert.alarm);
+    });
+
+    test('چرخهٔ کلیک: آلارم → اعلان → خاموش → آلارم', () {
+      expect(CourseAlert.alarm.next, CourseAlert.notice);
+      expect(CourseAlert.notice.next, CourseAlert.off);
+      expect(CourseAlert.off.next, CourseAlert.alarm);
+    });
+
+    test('هر حالت برچسب و توضیح فارسی دارد', () {
+      for (final a in CourseAlert.values) {
+        expect(a.label.trim(), isNotEmpty);
+        expect(a.hint.trim(), isNotEmpty);
+      }
+    });
+
+    test('copyWith حالت را حفظ می‌کند', () {
+      final c = Course(id: 1, name: 'x', colorValue: kCoursePalette[0], alert: CourseAlert.notice);
+      expect(c.copyWith(units: 3).alert, CourseAlert.notice);
+      expect(c.copyWith(sessions: const []).alert, CourseAlert.notice);
+      expect(c.copyWith(alert: CourseAlert.off).alert, CourseAlert.off);
+      expect(c.copyWith(alert: CourseAlert.off).alert.next, CourseAlert.alarm);
+    });
+  });
+
   group('کلید اعلان هر جلسه', () {
     test('پیش‌فرض: اعلان جلسه روشن است', () {
       const s = Session(day: 0, start: 8, end: 10);
@@ -144,7 +213,7 @@ void main() {
       // گروه دوم با کپی درس‌ها → درس‌ها همان id گروه اول را دارند (حالت واقعی)
       final g = await store.addGroup(name: 'گروه تست آلارم', copyCoursesFromActive: true);
       final course = g.courses.first;
-      final updated = course.copyWith(muted: true, alarmMinutes: 20);
+      final updated = course.copyWith(alert: CourseAlert.notice, alarmMinutes: 20);
 
       // گروه فعال را عوض کن تا مطمئن شویم updateCourse به گروه فعال وابسته نیست
       await store.selectGroup(originalId);
@@ -153,14 +222,14 @@ void main() {
 
       final target = store.groups.firstWhere((x) => x.id == g.id);
       final found = target.courses.firstWhere((c) => c.id == course.id);
-      expect(found.muted, isTrue);
+      expect(found.alert, CourseAlert.notice);
       expect(found.alarmMinutes, 20);
 
       // گروه دیگر نباید دست خورده باشد (باگ id مشترک)
       final other = store.groups.firstWhere((x) => x.id == originalId);
       final same = other.courses.where((c) => c.id == course.id);
       for (final c in same) {
-        expect(c.muted, isFalse, reason: 'گروه دیگر بی‌دلیل خاموش شد');
+        expect(c.alert, CourseAlert.alarm, reason: 'گروه دیگر بی‌دلیل خاموش شد');
       }
 
       await store.removeGroup(g.id);
@@ -192,7 +261,8 @@ void main() {
       final text = File('test/fixtures/friend_plan.json').readAsStringSync();
       final r = ScheduleStore.instance.parseAnyToGroups(text);
       for (final c in r.groups.first.courses) {
-        expect(c.muted, isFalse, reason: 'درس «${c.name}» بی‌دلیل خاموش آمده');
+        expect(c.alertsOn, isTrue, reason: 'درس «${c.name}» بی‌دلیل خاموش آمده');
+        expect(c.alert, CourseAlert.alarm, reason: 'درس «${c.name}» باید آلارم بگیرد');
         for (final s in c.sessions) {
           expect(s.alarmOff, isFalse, reason: 'جلسهٔ «${c.name}» بی‌دلیل بی‌اعلان آمده');
         }

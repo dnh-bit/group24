@@ -28,7 +28,7 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
   late String _kind = widget.course?.kind ?? 'تخصصی';
   late int _units = widget.course?.units ?? 2;
   late int _color = widget.course?.colorValue ?? kCoursePalette.first;
-  late bool _muted = widget.course?.muted ?? false;
+  late CourseAlert _alert = widget.course?.alert ?? CourseAlert.alarm;
   late int? _alarmMinutes = widget.course?.alarmMinutes;
   late List<Session> _sessions = List.of(widget.course?.sessions ?? []);
   late bool _hasExam = widget.course?.exam != null;
@@ -90,7 +90,8 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
           : null,
       sessions: _sessions,
       note: _note.text.trim(),
-      muted: _muted,
+      muted: _alert == CourseAlert.off,
+      alert: _alert,
       alarmMinutes: _alarmMinutes,
     );
   }
@@ -460,17 +461,38 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
                   decoration: const InputDecoration(labelText: 'مکان امتحان', border: OutlineInputBorder()),
                 ),
               ],
-              const SectionHeader('یادآوری و یادداشت'),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: !_muted,
-                onChanged: (v) => setState(() {
-                  _muted = !v;
+              const SectionHeader('اعلان این درس'),
+              // همان سه حالتِ صفحهٔ تنظیمات، تا جای دیگری هم گیج‌کننده نباشد
+              SegmentedButton<CourseAlert>(
+                segments: const [
+                  ButtonSegment(
+                    value: CourseAlert.alarm,
+                    icon: Icon(Icons.alarm_on_rounded, size: 17),
+                    label: Text('آلارم', style: TextStyle(fontSize: 12.5)),
+                  ),
+                  ButtonSegment(
+                    value: CourseAlert.notice,
+                    icon: Icon(Icons.notifications_outlined, size: 17),
+                    label: Text('اعلان', style: TextStyle(fontSize: 12.5)),
+                  ),
+                  ButtonSegment(
+                    value: CourseAlert.off,
+                    icon: Icon(Icons.notifications_off_outlined, size: 17),
+                    label: Text('خاموش', style: TextStyle(fontSize: 12.5)),
+                  ),
+                ],
+                selected: {_alert},
+                onSelectionChanged: (v) => setState(() {
+                  _alert = v.first;
                   _dirty = true;
                 }),
-                title: const Text('یادآوری این درس روشن باشه'),
               ),
-              if (!_muted)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(_alert.hint,
+                    style: const TextStyle(fontSize: 11.5, color: AppColors.muted, height: 1.5)),
+              ),
+              if (_alert != CourseAlert.off)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.alarm_rounded, color: AppColors.saffron),

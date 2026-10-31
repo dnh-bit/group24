@@ -225,6 +225,27 @@ def exam_from(j):
                 place=str(pick(j, ['place', 'محل', 'room', 'location']) or '').strip())
 
 
+ALARM_WORDS = {'alarm', 'alarmmode', 'ring', 'آلارم', 'زنگ', 'هشدار'}
+NOTICE_WORDS = {'notice', 'notification', 'notify', 'پیام', 'اعلان', 'ساده', 'noticeonly'}
+OFF_WORDS = {'off', 'none', 'silent', 'mute', 'muted', 'خاموش', 'بی‌صدا', 'هیچ'}
+
+
+def alert_of(j):
+    """حالت اعلان درس: alarm / notice / off (معادل _alertOf در Dart)."""
+    v = pick(j, ['alert', 'notify', 'alertMode', 'هشدار', 'اعلان'])
+    if v is not None:
+        s = norm_digits(str(v)).lower().strip()
+        if s in ALARM_WORDS:
+            return 'alarm'
+        if s in NOTICE_WORDS:
+            return 'notice'
+        if s in OFF_WORDS:
+            return 'off'
+    if as_bool(pick(j, ['muted']), False):
+        return 'off'
+    return 'alarm'
+
+
 def alarm_minutes_from(j):
     v = pick(j, ['alarmMinutes', 'alarm_minutes', 'alarm'])
     if v is None:
@@ -251,6 +272,7 @@ def course_from(j, idx=0):
         exam=(exam_from(pick(j, ['exam', 'امتحان']))
               if isinstance(pick(j, ['exam', 'امتحان']), dict) else None),
         alarmMinutes=alarm_minutes_from(j),
+        alert=alert_of(j),
     )
 
 
