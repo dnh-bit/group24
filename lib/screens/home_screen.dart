@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/schedule_store.dart';
-import '../data/models.dart';
 import '../services/notification_service.dart';
 import '../theme.dart';
 import '../utils.dart';

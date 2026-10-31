@@ -242,19 +242,29 @@ class ScheduleStore extends ChangeNotifier {
     if (c != null) await upsert(c.copyWith(muted: muted));
   }
 
-  /// یک درس را در هر گروهی که باشد به‌روز می‌کند (صفحهٔ تنظیمات ممکن است
-  /// گروه اعلان‌ها را نشان دهد که با گروه فعال یکی نیست).
-  Future<void> updateCourse(Course c) async {
-    for (var i = 0; i < _groups.length; i++) {
-      final list = _groups[i].courses;
-      final j = list.indexWhere((x) => x.id == c.id);
-      if (j < 0) continue;
-      final next = List<Course>.of(list);
-      next[j] = c;
-      _groups[i] = _groups[i].copyWith(courses: next);
-      await _commit();
-      return;
+  /// یک درس را در یک گروه مشخص به‌روز می‌کند.
+  ///
+  /// [groupId] را همیشه بده: دو گروه می‌توانند درس‌هایی با **همان id** داشته
+  /// باشند (وقتی گروه جدید با کپی درس‌ها ساخته می‌شود)، و بدون آن تغییر روی
+  /// گروه اشتباه اعمال می‌شد.
+  Future<bool> updateCourse(Course c, {String? groupId}) async {
+    var i = groupId == null ? -1 : _groups.indexWhere((g) => g.id == groupId);
+    if (i < 0) {
+      // بدون groupId: اول گروه فعال، بعد بقیه (رفتار قبلی ولی ایمن‌تر)
+      i = _groups.indexWhere((g) => g.id == _activeId);
+      if (i < 0) i = 0;
     }
+    if (i < 0 || i >= _groups.length) return false;
+
+    final list = _groups[i].courses;
+    final j = list.indexWhere((x) => x.id == c.id);
+    if (j < 0) return false;
+
+    final next = List<Course>.of(list);
+    next[j] = c;
+    _groups[i] = _groups[i].copyWith(courses: next);
+    await _commit();
+    return true;
   }
 
   /// درس‌های گروه فعال را به برنامهٔ اولیهٔ همان گروه برمی‌گردونه.

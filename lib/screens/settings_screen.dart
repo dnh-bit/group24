@@ -392,7 +392,8 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                   padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
                   child: Text('این گروه درسی ندارد.', style: TextStyle(color: AppColors.muted)),
                 ),
-              for (final c in notifGroup.courses) _CourseAlarmTile(course: c, onChanged: () => setState(() {})),
+              for (final c in notifGroup.courses)
+                _CourseAlarmTile(course: c, groupId: notifGroup.id, onChanged: () => setState(() {})),
             ],
           ),
           const SizedBox(height: 12),
@@ -531,8 +532,9 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 /// ردیف تنظیمات اعلان یک درس: خاموش/روشن + دقیقهٔ اختصاصی + جلسه‌ها.
 class _CourseAlarmTile extends StatelessWidget {
   final Course course;
+  final String groupId;
   final VoidCallback onChanged;
-  const _CourseAlarmTile({required this.course, required this.onChanged});
+  const _CourseAlarmTile({required this.course, required this.groupId, required this.onChanged});
 
   Future<void> _setMinutes(BuildContext context) async {
     final picked = await showModalBottomSheet<int>(
@@ -583,6 +585,7 @@ class _CourseAlarmTile extends StatelessWidget {
         alarmMinutes: picked,
         clearAlarmMinutes: picked == -1,
       ),
+      groupId: groupId,
     );
     await NotificationService.instance.reschedule();
     onChanged();
@@ -593,7 +596,7 @@ class _CourseAlarmTile extends StatelessWidget {
     final list = List<Session>.of(course.sessions);
     if (index < 0 || index >= list.length) return;
     list[index] = list[index].copyWith(alarmOff: !list[index].alarmOff);
-    await ScheduleStore.instance.updateCourse(course.copyWith(sessions: list));
+    await ScheduleStore.instance.updateCourse(course.copyWith(sessions: list), groupId: groupId);
     await NotificationService.instance.reschedule();
     onChanged();
   }
@@ -610,7 +613,7 @@ class _CourseAlarmTile extends StatelessWidget {
         SwitchListTile(
           value: on,
           onChanged: (v) async {
-            await ScheduleStore.instance.updateCourse(course.copyWith(muted: !v));
+            await ScheduleStore.instance.updateCourse(course.copyWith(muted: !v), groupId: groupId);
             await NotificationService.instance.reschedule();
             onChanged();
           },

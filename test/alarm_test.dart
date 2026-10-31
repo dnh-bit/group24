@@ -138,23 +138,52 @@ void main() {
   });
 
   group('ثبت تغییرات درس', () {
-    test('updateCourse روی گروهی که فعال نیست هم اثر می‌گذارد', () async {
+    test('updateCourse با groupId روی گروه درست اثر می‌گذارد', () async {
       final store = ScheduleStore.instance;
-      // یک گروه دوم بساز
+      final originalId = store.activeGroupId;
+      // گروه دوم با کپی درس‌ها → درس‌ها همان id گروه اول را دارند (حالت واقعی)
       final g = await store.addGroup(name: 'گروه تست آلارم', copyCoursesFromActive: true);
       final course = g.courses.first;
       final updated = course.copyWith(muted: true, alarmMinutes: 20);
 
       // گروه فعال را عوض کن تا مطمئن شویم updateCourse به گروه فعال وابسته نیست
-      await store.selectGroup(store.groups.first.id);
-      await store.updateCourse(updated);
+      await store.selectGroup(originalId);
+      final ok = await store.updateCourse(updated, groupId: g.id);
+      expect(ok, isTrue);
 
       final target = store.groups.firstWhere((x) => x.id == g.id);
       final found = target.courses.firstWhere((c) => c.id == course.id);
       expect(found.muted, isTrue);
       expect(found.alarmMinutes, 20);
 
+      // گروه دیگر نباید دست خورده باشد (باگ id مشترک)
+      final other = store.groups.firstWhere((x) => x.id == originalId);
+      final same = other.courses.where((c) => c.id == course.id);
+      for (final c in same) {
+        expect(c.muted, isFalse, reason: 'گروه دیگر بی‌دلیل خاموش شد');
+      }
+
       await store.removeGroup(g.id);
+      await store.selectGroup(originalId);
+    });
+
+    test('updateCourse بدون groupId درسِ گروه فعال را عوض می‌کند', () async {
+      final store = ScheduleStore.instance;
+      final active = store.activeGroup;
+      if (active.courses.isEmpty) return;
+      final c = active.courses.first;
+      await store.updateCourse(c.copyWith(alarmMinutes: 15));
+      final back = store.activeGroup.courses.firstWhere((x) => x.id == c.id);
+      expect(back.alarmMinutes, 15);
+      await store.updateCourse(c.copyWith(clearAlarmMinutes: true));
+      expect(store.activeGroup.courses.firstWhere((x) => x.id == c.id).alarmMinutes, isNull);
+    });
+
+    test('updateCourse برای درس ناموجود false برمی‌گرداند', () async {
+      final ok = await ScheduleStore.instance.updateCourse(
+        Course(id: 999999, name: 'ناموجود', colorValue: kCoursePalette[0]),
+      );
+      expect(ok, isFalse);
     });
   });
 

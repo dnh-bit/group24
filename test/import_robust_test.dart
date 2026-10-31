@@ -1,9 +1,7 @@
-import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:course_plan/data/backup_code.dart';
-import 'package:course_plan/data/models.dart';
 import 'package:course_plan/data/schedule_store.dart';
 
 /// ایمپورت باید «قطعی» کار کند: هر شکل معقولی از فایل یا متن که کاربر

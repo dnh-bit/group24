@@ -1,5 +1,4 @@
 import 'dart:io' show Platform;
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -191,7 +190,7 @@ class NotificationService {
   static int _examId(int courseSlot, int kind) => 200000 + courseSlot * 2 + kind;
 
   /// آیا این اعلان باید به‌شکل آلارم (تمام‌صفحه) بیاید؟
-  bool _alarmWanted(bool isExam) {
+  bool _alarmWanted({required bool isExam}) {
     final s = SettingsService.instance.settings;
     if (!s.fullScreenAlarm) return false;
     if (s.alarmSound == AlarmSound.silent) return false;
