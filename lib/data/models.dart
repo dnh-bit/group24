@@ -60,6 +60,19 @@ CourseAlert _alertOf(Map j) {
   return CourseAlert.alarm;
 }
 
+/// مثل [_bool] ولی اگر کلید وجود نداشته باشد `null` برمی‌گرداند
+/// (یعنی «پیش‌فرض» را رعایت کن).
+bool? _boolOrNull(dynamic v) {
+  if (v == null) return null;
+  if (v is bool) return v;
+  if (v is num) return v != 0;
+  final s = _normDigits(v.toString()).toLowerCase().trim();
+  if (s.isEmpty) return null;
+  if (const ['true', '1', 'yes', 'on', 'بله', 'آری', 'فعال', 'روشن'].contains(s)) return true;
+  if (const ['false', '0', 'no', 'off', 'خیر', 'نه', 'غیرفعال', 'خاموش'].contains(s)) return false;
+  return null;
+}
+
 /// بولین تحمل‌پذیر: true/false، ۱/۰، "بله"/"خیر"، "on"/"off"
 bool _bool(dynamic v, bool def) {
   if (v == null) return def;
@@ -124,8 +137,11 @@ class Session {
   final String room;
   final String type; // نظری / عملی
 
-  /// آلارم این جلسه خاموش باشد (مثلاً کلاسی که همیشه سر وقت نمی‌روی).
-  final bool alarmOff;
+  /// اعلان این جلسه خاموش باشد.
+  ///
+  /// `null` یعنی «پیش‌فرض»: جلسه‌های **تک‌ساعته** به‌طور پیش‌فرض اعلان
+  /// نمی‌گیرند (کاربر می‌تواند روشنشان کند) و بقیه پیش‌فرض روشن‌اند.
+  final bool? alarmOff;
 
   const Session({
     required this.day,
@@ -133,7 +149,7 @@ class Session {
     required this.end,
     this.room = '',
     this.type = 'نظری',
-    this.alarmOff = false,
+    this.alarmOff,
   });
 
   double get length => end - start;
@@ -141,6 +157,15 @@ class Session {
   /// جلسات یک‌ساعته در این برنامه برگزار نمی‌شن (قاعدهٔ کتبی کاربر)؛
   /// خاکستری می‌شن، اعلان ندارن و در «کلاس بعدی» هم ظاهر نمی‌شن.
   bool get isOneHour => (length - 1.0).abs() < 0.001;
+
+  /// اعلان این جلسه روشن است؟
+  ///
+  /// اگر کاربر دستی انتخاب نکرده باشد (`alarmOff == null`) جلسه‌های
+  /// تک‌ساعته پیش‌فرض بی‌اعلان‌اند و بقیه اعلان می‌گیرند.
+  bool get alarmEnabled => !(alarmOff ?? isOneHour);
+
+  /// مقدار مؤثر برای نمایش/ذخیره (پیش‌فرض را هم حساب می‌کند).
+  bool get alarmOffEffective => !alarmEnabled;
 
   bool overlaps(Session o) => o.day == day && start < o.end && o.start < end;
 
@@ -151,6 +176,7 @@ class Session {
     String? room,
     String? type,
     bool? alarmOff,
+    bool resetAlarmOff = false,
   }) =>
       Session(
         day: day ?? this.day,
@@ -158,7 +184,7 @@ class Session {
         end: end ?? this.end,
         room: room ?? this.room,
         type: type ?? this.type,
-        alarmOff: alarmOff ?? this.alarmOff,
+        alarmOff: resetAlarmOff ? null : (alarmOff ?? this.alarmOff),
       );
 
   Map<String, dynamic> toJson() => {
@@ -167,7 +193,7 @@ class Session {
         'e': end,
         'room': room,
         't': type,
-        if (alarmOff) 'alarmOff': true,
+        if (alarmOff != null) 'alarmOff': alarmOff,
       };
 
   factory Session.fromJson(Map<String, dynamic> j) {
@@ -184,7 +210,7 @@ class Session {
       type: _str(_pick(j, ['t', 'type', 'نوع'])).isEmpty
           ? 'نظری'
           : _str(_pick(j, ['t', 'type', 'نوع'])),
-      alarmOff: _bool(_pick(j, ['alarmOff', 'alarm_off', 'silent', 'بی‌صدا']), false),
+      alarmOff: _boolOrNull(_pick(j, ['alarmOff', 'alarm_off', 'silent', 'بی‌صدا'])),
     );
   }
 }

@@ -193,6 +193,13 @@ def as_bool(v, default=False):
     return default
 
 
+def as_bool_or_none(v):
+    """مثل as_bool ولی نبودِ کلید → None (یعنی پیش‌فرض)."""
+    if v is None:
+        return None
+    return as_bool(v)
+
+
 def session_from(j):
     day = as_day(pick(j, ['d', 'day', 'روز']) if pick(j, ['d', 'day', 'روز']) is not None else pick(j, ['weekday']), 0)
     if day < 0 or day > 6:
@@ -201,10 +208,15 @@ def session_from(j):
     end = as_hour(pick(j, ['e', 'end', 'پایان', 'to']), start + 2)
     if end <= start:
         end = start + 2
+    one_hour = abs((round(end, 2) - round(start, 2)) - 1.0) < 0.001
     return dict(day=day, start=min(max(start, 0), 24), end=min(max(end, 0), 24),
                 room=str(pick(j, ['room', 'کلاس', 'place', 'location']) or '').strip(),
                 type=(str(pick(j, ['t', 'type', 'نوع']) or '').strip() or 'نظری'),
-                alarmOff=as_bool(pick(j, ['alarmOff', 'alarm_off', 'silent', 'بی‌صدا'])))
+                # None = پیش‌فرض: تک‌ساعته بی‌اعلان، بقیه اعلان‌دار
+                alarmOff=as_bool_or_none(pick(j, ['alarmOff', 'alarm_off', 'silent', 'بی‌صدا'])),
+                oneHour=one_hour,
+                alarmEnabled=(not as_bool(pick(j, ['alarmOff', 'alarm_off', 'silent', 'بی‌صدا']),
+                                          one_hour)))
 
 
 def exam_from(j):

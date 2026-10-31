@@ -47,7 +47,8 @@ class _SessionSheetState extends State<_SessionSheet> {
         end: _end,
         room: _room.text.trim(),
         type: _type,
-        alarmOff: widget.initial?.alarmOff ?? false,
+        // null یعنی «پیش‌فرض» — با ویرایش ساعت، انتخاب دستی کاربر پاک نشود
+        alarmOff: widget.initial?.alarmOff,
       );
 
   @override

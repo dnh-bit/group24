@@ -381,15 +381,19 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
                             ),
                           ),
                           IconButton(
-                            tooltip: _sessions[i].alarmOff ? 'اعلان این جلسه خاموش است' : 'اعلان این جلسه روشن است',
+                            tooltip: _sessions[i].alarmEnabled
+                                ? 'اعلان این جلسه روشن است'
+                                : 'اعلان این جلسه خاموش است'
+                                    '${_sessions[i].isOneHour ? ' (تک‌ساعته پیش‌فرض بی‌اعلان)' : ''}',
                             icon: Icon(
-                              _sessions[i].alarmOff
-                                  ? Icons.notifications_off_outlined
-                                  : Icons.notifications_active_outlined,
-                              color: _sessions[i].alarmOff ? AppColors.muted : AppColors.saffron,
+                              _sessions[i].alarmEnabled
+                                  ? Icons.notifications_active_outlined
+                                  : Icons.notifications_off_outlined,
+                              color: _sessions[i].alarmEnabled ? AppColors.saffron : AppColors.muted,
                             ),
                             onPressed: () => setState(() {
-                              _sessions[i] = _sessions[i].copyWith(alarmOff: !_sessions[i].alarmOff);
+                              _sessions[i] = _sessions[i]
+                                  .copyWith(alarmOff: _sessions[i].alarmEnabled);
                               _dirty = true;
                             }),
                           ),

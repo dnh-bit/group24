@@ -127,9 +127,40 @@ void main() {
   });
 
   group('کلید اعلان هر جلسه', () {
-    test('پیش‌فرض: اعلان جلسه روشن است', () {
+    test('جلسهٔ دو ساعته پیش‌فرض اعلان می‌گیرد', () {
       const s = Session(day: 0, start: 8, end: 10);
-      expect(s.alarmOff, isFalse);
+      expect(s.alarmOff, isNull);
+      expect(s.alarmEnabled, isTrue);
+      expect(s.isOneHour, isFalse);
+    });
+
+    test('جلسهٔ تک‌ساعته پیش‌فرض بی‌اعلان است', () {
+      const s = Session(day: 0, start: 7.5, end: 8.5);
+      expect(s.isOneHour, isTrue);
+      expect(s.alarmOff, isNull);
+      expect(s.alarmEnabled, isFalse);
+      expect(s.alarmOffEffective, isTrue);
+    });
+
+    test('کاربر می‌تواند تک‌ساعته را صریحاً روشن کند', () {
+      const s = Session(day: 0, start: 7.5, end: 8.5, alarmOff: false);
+      expect(s.isOneHour, isTrue);
+      expect(s.alarmEnabled, isTrue);
+    });
+
+    test('کاربر می‌تواند جلسهٔ دو ساعته را صریحاً خاموش کند', () {
+      const s = Session(day: 0, start: 8, end: 10, alarmOff: true);
+      expect(s.alarmEnabled, isFalse);
+    });
+
+    test('مرزها: ۵۹:۵۹ و ۱:۰۰:۰۱ تک‌ساعته حساب نمی‌شوند', () {
+      // ۱ ساعت و ۲ دقیقه
+      expect(const Session(day: 0, start: 8, end: 9.0333).isOneHour, isFalse);
+      // ۵۸ دقیقه
+      expect(const Session(day: 0, start: 8, end: 8.9667).isOneHour, isFalse);
+      // دقیقاً ۱ ساعت
+      expect(const Session(day: 0, start: 8, end: 9).isOneHour, isTrue);
+      expect(const Session(day: 0, start: 13.5, end: 14.5).isOneHour, isTrue);
     });
 
     test('alarmOff در copyWith حفظ/تغییر می‌کند', () {
@@ -142,21 +173,33 @@ void main() {
       // بقیهٔ copyWith هم نباید alarmOff را صفر کند
       expect(off.copyWith(room: 'کلاس ۲۰۴').alarmOff, isTrue);
       expect(off.copyWith(start: 9).alarmOff, isTrue);
+      // resetAlarmOff برش می‌گرداند به «پیش‌فرض»
+      expect(off.copyWith(resetAlarmOff: true).alarmOff, isNull);
     });
 
-    test('alarmOff در JSON ذخیره و بازگردانی می‌شود', () {
-      const s = Session(day: 2, start: 10, end: 12, room: '۲۰۴', type: 'عملی', alarmOff: true);
-      final j = s.toJson();
-      expect(j['alarmOff'], isTrue);
-      final back = Session.fromJson(j);
-      expect(back.alarmOff, isTrue);
-      expect(back.day, 2);
-      expect(back.room, '۲۰۴');
+    test('alarmOff در JSON ذخیره و بازگردانی می‌شود (هر سه حالت)', () {
+      for (final v in <bool?>[true, false, null]) {
+        final s = Session(day: 2, start: 10, end: 12, room: '۲۰۴', type: 'عملی', alarmOff: v);
+        final back = Session.fromJson(s.toJson());
+        expect(back.alarmOff, v, reason: 'مقدار $v گم شد');
+        expect(back.day, 2);
+        expect(back.room, '۲۰۴');
+      }
     });
 
-    test('جلسهٔ روشن کلید alarmOff را در JSON نمی‌نویسد (حجم کمتر)', () {
+    test('جلسهٔ پیش‌فرض کلید alarmOff را در JSON نمی‌نویسد (حجم کمتر)', () {
       const s = Session(day: 0, start: 8, end: 10);
       expect(s.toJson().containsKey('alarmOff'), isFalse);
+    });
+
+    test('ذخیره/بازگردانی، پیش‌فرض تک‌ساعته را حفظ می‌کند', () {
+      const oneHour = Session(day: 0, start: 7.5, end: 8.5);
+      final back = Session.fromJson(oneHour.toJson());
+      expect(back.isOneHour, isTrue);
+      expect(back.alarmEnabled, isFalse, reason: 'پیش‌فرض تک‌ساعته بعد از ذخیره گم شد');
+
+      const normal = Session(day: 0, start: 8, end: 10);
+      expect(Session.fromJson(normal.toJson()).alarmEnabled, isTrue);
     });
 
     test('alarmOff از کلیدهای فارسی/متن هم خوانده می‌شود', () {
@@ -264,7 +307,10 @@ void main() {
         expect(c.alertsOn, isTrue, reason: 'درس «${c.name}» بی‌دلیل خاموش آمده');
         expect(c.alert, CourseAlert.alarm, reason: 'درس «${c.name}» باید آلارم بگیرد');
         for (final s in c.sessions) {
-          expect(s.alarmOff, isFalse, reason: 'جلسهٔ «${c.name}» بی‌دلیل بی‌اعلان آمده');
+          expect(s.alarmOff, isNull, reason: 'جلسهٔ «${c.name}» بدون دلیل صریح خاموش شده');
+          // پیش‌فرض: تک‌ساعته بی‌اعلان، بقیه اعلان‌دار
+          expect(s.alarmEnabled, !s.isOneHour,
+              reason: 'جلسهٔ «${c.name}» ساعت ${s.start} پیش‌فرض اشتباه دارد');
         }
       }
     });

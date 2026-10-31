@@ -327,13 +327,16 @@ class NotificationService {
   /// آیا این درس اصلاً اعلان بگیرد؟ (آلارم یا اعلان ساده)
   static bool courseEnabled(Course c) => c.alertsOn && !c.muted;
 
-  /// آیا این جلسه اعلان بگیرد؟ (درس روشن + جلسه روشن + تک‌ساعته نباشد)
+  /// آیا این جلسه اعلان بگیرد؟
+  ///
+  /// پیش‌فرضِ هر جلسه از [Session.alarmEnabled] می‌آید: جلسه‌های تک‌ساعته
+  /// به‌طور پیش‌فرض اعلان نمی‌گیرند مگر کاربر خودش روشنشان کند. تنظیم کلی
+  /// «لغو کلاس‌های تک‌ساعته» هم تک‌ساعته‌ها را کامل حذف می‌کند.
   bool sessionAlarmEnabled(Course c, Session se) {
     final s = SettingsService.instance.settings;
     if (!courseEnabled(c)) return false;
-    if (se.alarmOff) return false;
     if (s.cancelOneHourClasses && se.isOneHour) return false;
-    return true;
+    return se.alarmEnabled;
   }
 
   Future<void> _reschedule() async {

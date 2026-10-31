@@ -288,27 +288,12 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           const _SectionTitle('اعلان هر درس'),
 
           _Card(children: [
-            ListTile(
-              leading: const Icon(Icons.tune_rounded, color: AppColors.saffron),
-              title: Text('برنامهٔ «${notifGroup.name}»', style: _tTile),
-              subtitle: const Text(
-                'روی هر درس بزن تا باز شود. هر درس می‌تواند آلارم بزند، '
-                'فقط اعلان بگیرد، یا کاملاً خاموش باشد.',
-                style: TextStyle(fontSize: 12.5, height: 1.6),
-              ),
+            // کل این بخش یک کشویی است: بسته = فقط عنوان و خلاصه،
+            // باز = فهرست کامل درس‌ها برای انتخاب اعلان.
+            _CourseListExpansion(
+              group: notifGroup,
+              onChanged: () => setState(() {}),
             ),
-            const Divider(height: 1),
-            if (notifGroup.courses.isEmpty)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 12, 16, 16),
-                child: Text('این گروه درسی ندارد.', style: TextStyle(color: AppColors.muted)),
-              ),
-            for (final c in notifGroup.courses)
-              _CourseAlarmExpansion(
-                course: c,
-                groupId: notifGroup.id,
-                onChanged: () => setState(() {}),
-              ),
           ]),
 
           // ═══════════ ۳. آلارم ═══════════
@@ -556,12 +541,95 @@ class _SliderBlock extends StatelessWidget {
   }
 }
 
+/// کشویی فهرست درس‌ها: بسته = عنوان گروه + خلاصهٔ وضعیت؛ باز = همهٔ درس‌ها.
+class _CourseListExpansion extends StatefulWidget {
+  final CourseGroup group;
+  final VoidCallback onChanged;
+  const _CourseListExpansion({required this.group, required this.onChanged});
+
+  @override
+  State<_CourseListExpansion> createState() => _CourseListExpansionState();
+}
+
+class _CourseListExpansionState extends State<_CourseListExpansion> {
+  bool _open = false;
+
+  CourseGroup get group => widget.group;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = group.courses.length;
+    final alarms = group.courses
+        .where((c) => c.alert == CourseAlert.alarm && !c.muted)
+        .length;
+    final notices = group.courses
+        .where((c) => c.alert == CourseAlert.notice && !c.muted)
+        .length;
+    final offs = total - alarms - notices;
+
+    // خلاصهٔ کوتاه برای حالت بسته
+    final parts = <String>[
+      if (alarms > 0) '${fa(alarms)} آلارم',
+      if (notices > 0) '${fa(notices)} اعلان',
+      if (offs > 0) '${fa(offs)} خاموش',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ListTile(
+          onTap: () => setState(() => _open = !_open),
+          leading: const Icon(Icons.tune_rounded, color: AppColors.saffron),
+          title: Text('برنامهٔ «${group.name}»', style: _tTile),
+          subtitle: Text(
+            total == 0
+                ? 'این گروه درسی ندارد'
+                : _open
+                    ? 'برای هر درس، حالت اعلان را انتخاب کن'
+                    : '${fa(total)} درس · ${parts.isEmpty ? 'همه خاموش' : parts.join(' · ')}',
+            style: const TextStyle(fontSize: 12.5, height: 1.6),
+          ),
+          trailing: Icon(_open ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+              color: AppColors.muted),
+        ),
+        if (_open) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              'روی هر درس بزن تا باز شود. هر درس می‌تواند آلارم بزند، '
+              'فقط اعلان بگیرد، یا کاملاً خاموش باشد.',
+              style: const TextStyle(fontSize: 12, color: AppColors.muted, height: 1.6),
+            ),
+          ),
+          const Divider(height: 1),
+          if (total == 0)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Text('این گروه درسی ندارد.', style: TextStyle(color: AppColors.muted)),
+            ),
+          for (final c in group.courses)
+            _CourseAlarmExpansion(
+              key: ValueKey('${group.id}-${c.id}'),
+              course: c,
+              groupId: group.id,
+              onChanged: () {
+                setState(() {}); // خلاصهٔ بالای کشویی هم به‌روز شود
+                widget.onChanged();
+              },
+            ),
+        ],
+      ],
+    );
+  }
+}
+
 /// کشویی یک درس: بسته = نام + خلاصهٔ حالت؛ باز = انتخاب حالت، زمان و جلسه‌ها.
 class _CourseAlarmExpansion extends StatefulWidget {
   final Course course;
   final String groupId;
   final VoidCallback onChanged;
   const _CourseAlarmExpansion({
+    super.key,
     required this.course,
     required this.groupId,
     required this.onChanged,
@@ -642,10 +710,12 @@ class _CourseAlarmExpansionState extends State<_CourseAlarmExpansion> {
   Future<void> _toggleSession(int index) async {
     final list = List<Session>.of(course.sessions);
     if (index < 0 || index >= list.length) return;
-    list[index] = list[index].copyWith(alarmOff: !list[index].alarmOff);
+    // مقدار مؤثر فعلی را برمی‌گردانیم (پیش‌فرضِ تک‌ساعته هم حساب می‌شود)
+    list[index] = list[index].copyWith(alarmOff: list[index].alarmEnabled);
     await _update(course.copyWith(sessions: list));
   }
 
+  /// «همه روشن / همه خاموش»: همهٔ جلسه‌ها را صریح روی یک مقدار می‌گذارد.
   Future<void> _toggleAllSessions(bool on) async {
     final list = [for (final s in course.sessions) s.copyWith(alarmOff: !on)];
     await _update(course.copyWith(sessions: list));
@@ -654,7 +724,7 @@ class _CourseAlarmExpansionState extends State<_CourseAlarmExpansion> {
   @override
   Widget build(BuildContext context) {
     final on = course.alertsOn && !course.muted;
-    final offSessions = course.sessions.where((s) => s.alarmOff).length;
+    final offSessions = course.sessions.where((s) => !s.alarmEnabled).length;
     final mins = NotificationService.minutesFor(course);
 
     final (Color tint, IconData icon) = switch (course.alert) {
@@ -795,10 +865,11 @@ class _CourseAlarmExpansionState extends State<_CourseAlarmExpansion> {
                         for (var i = 0; i < course.sessions.length; i++)
                           FilterChip(
                             label: Text(
-                              '${kDayNames[course.sessions[i].day]} ${fmtTime(course.sessions[i].start)}',
+                              '${kDayNames[course.sessions[i].day]} ${fmtTime(course.sessions[i].start)}'
+                              '${course.sessions[i].isOneHour ? ' · ۱ ساعته' : ''}',
                               style: const TextStyle(fontSize: 11.5),
                             ),
-                            selected: !course.sessions[i].alarmOff,
+                            selected: course.sessions[i].alarmEnabled,
                             onSelected: (_) => _toggleSession(i),
                             selectedColor: AppColors.saffron.withAlpha(40),
                             checkmarkColor: AppColors.saffron,
