@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../data/schedule_store.dart';
+import '../services/battery_service.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../theme.dart';
@@ -32,6 +33,11 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   // اندروید ۱۴+ اجازهٔ جدا برای آلارم تمام‌صفحه می‌خواهد
   bool _fullScreenOk = !NotificationService.needsFullScreenPermission;
 
+  // باتری
+  bool _batteryOk = true;
+  bool _batteryOpen = false;
+  String _manufacturer = '';
+
   bool get _isAndroid => !kIsWeb && Platform.isAndroid;
 
   @override
@@ -57,8 +63,32 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
   Future<void> _checkPerms() async {
     final exact = await _notif.canScheduleExact();
+    var batteryOk = true;
+    var manufacturer = '';
+    if (_isAndroid) {
+      batteryOk = await BatteryService.instance.isIgnoringBatteryOptimizations();
+      final info = await BatteryService.instance.deviceInfo();
+      manufacturer = (info['manufacturer'] ?? '').toString();
+    }
     if (!mounted) return;
-    setState(() => _exactOk = exact);
+    setState(() {
+      _exactOk = exact;
+      _batteryOk = batteryOk;
+      _manufacturer = manufacturer;
+    });
+  }
+
+  /// درخواست استثنا از بهینه‌سازی باتری
+  Future<void> _askBattery() async {
+    final opened = await BatteryService.instance.openBatterySettings();
+    if (!opened) {
+      _toast('صفحهٔ باتری روی این گوشی پیدا نشد؛ از تنظیمات اپ امتحان کن.');
+      return;
+    }
+    // وقتی کاربر برگشت، وضعیت دوباره خوانده می‌شود (didChangeAppLifecycleState)
+    if (mounted) {
+      _toast('این اپ را از فهرست «بدون محدودیت» انتخاب کن.');
+    }
   }
 
   /// درخواست اجازهٔ آلارم تمام‌صفحه (اندروید ۱۴+)
@@ -334,6 +364,59 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             ),
           ]),
 
+          // ── باتری: فقط روی اندروید و فقط وقتی واقعاً لازم است ──
+          if (_isAndroid) ...[
+            const SizedBox(height: 10),
+            _Card(children: [
+              ListTile(
+                leading: Icon(
+                  _batteryOk ? Icons.battery_full_rounded : Icons.battery_alert_rounded,
+                  color: _batteryOk ? AppColors.olive : AppColors.saffron,
+                ),
+                title: const Text('باتری و پس‌زمینه', style: _tTile),
+                subtitle: Text(
+                  _batteryOk
+                      ? 'آلارم‌ها آزادند. اگر بازهم دیر آمد، تنظیم Autostart گوشی را چک کن.'
+                      : 'گوشی ممکن است آلارم را عقب بیندازد. با یک لمس اجازه بده.',
+                  style: const TextStyle(fontSize: 12.5, height: 1.6),
+                ),
+                trailing: const Icon(Icons.expand_more_rounded, color: AppColors.muted),
+                onTap: () => setState(() => _batteryOpen = !_batteryOpen),
+              ),
+              if (_batteryOpen) ...[
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                  child: Text(
+                    BatteryService.aggressiveVendor(_manufacturer)
+                        ? 'گوشی ${BatteryService.vendorLabel(_manufacturer)} است. اندروید اجازه می‌دهد آلارم‌ها آزاد باشند:'
+                        : 'اگر آلارم دیر آمد، اجازه بده اپ در پس‌زمینه بیدار بماند:',
+                    style: const TextStyle(fontSize: 12, color: AppColors.muted, height: 1.6),
+                  ),
+                ),
+                _ActionTile(
+                  icon: Icons.battery_charging_full_rounded,
+                  title: 'آزاد کردن باتری',
+                  subtitle: _batteryOk
+                      ? 'مستثنا شده — آلارم‌ها محدود نمی‌شوند'
+                      : 'این اپ از بهینه‌سازی باتری مستثنا شود',
+                  button: _batteryOk ? 'تغییر' : 'اجازه',
+                  onTap: _askBattery,
+                ),
+                _ActionTile(
+                  icon: Icons.restart_alt_rounded,
+                  title: 'Autostart و پس‌زمینه',
+                  subtitle: 'اجازهٔ خودکار اجرا شدن و ماندن در پس‌زمینه',
+                  button: 'باز کن',
+                  onTap: () async {
+                    final ok = await BatteryService.instance.openAutoStart();
+                    if (!ok) _toast('این گوشی صفحهٔ Autostart جدا ندارد؛ تنظیمات اپ باز می‌شود.');
+                  },
+                ),
+              ],
+            ]),
+          ],
+
           // ═══════════ ۴. برنامه و گروه‌ها ═══════════
           const SizedBox(height: 24),
           const _SectionTitle('برنامه'),
@@ -447,11 +530,13 @@ class _ActionTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final String button;
   const _ActionTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.button = 'اجازه',
   });
 
   @override
@@ -460,7 +545,7 @@ class _ActionTile extends StatelessWidget {
       leading: Icon(icon, color: AppColors.saffron),
       title: Text(title, style: _tTile),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 12.5)),
-      trailing: FilledButton(onPressed: onTap, child: const Text('اجازه')),
+      trailing: FilledButton(onPressed: onTap, child: Text(button)),
     );
   }
 }

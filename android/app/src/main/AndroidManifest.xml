@@ -9,6 +9,8 @@
     <!-- برای اینکه آلارم در حالت مزاحم‌نشو هم زنگ بزند -->
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- آزاد کردن اپ از بهینه‌سازی باتری تا آلارم‌ها عقب نیفتند -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:label="برنامه درسی"
