@@ -115,7 +115,8 @@ const List<Course> kDefaultCourses = [
     exam: Exam(date: JDate(1405, 10, 20), start: 8, end: 10),
     sessions: [
       Session(day: 3, start: 19.5, end: 20.5, room: 'کلاس ۲۰۱', type: 'نظری'),
-      Session(day: 1, start: 15.5, end: 17.5, room: 'کلاس ۵۰۱', type: 'عملی'),
+      // به دستور کاربر: یکشنبه ۱۵:۳۰-۱۷:۳۰ → سه‌شنبه ۱۴:۰۰-۱۵:۳۰
+      Session(day: 3, start: 14.0, end: 15.5, room: 'کلاس ۵۰۱', type: 'عملی'),
     ],
   ),
 ];

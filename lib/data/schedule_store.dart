@@ -27,6 +27,11 @@ class ScheduleStore extends ChangeNotifier {
   static const _legacyKey = 'courses_v1';
   static const _activeKey = 'active_group_v1';
 
+  /// شمارهٔ نسخهٔ داده؛ با هر تغییرِ برنامهٔ پیش‌فرض بالا می‌رود تا
+  /// کاربرانی که از قبل نصب کرده‌اند هم تغییر را ببینند.
+  static const _dataVersionKey = 'data_version';
+  static const currentDataVersion = 2;
+
   SharedPreferences? _prefs;
   List<CourseGroup> _groups = _defaultGroups();
   String _activeId = _defaultGroups().isEmpty ? '' : 'g1';
@@ -75,6 +80,7 @@ class ScheduleStore extends ChangeNotifier {
           final saved = _prefs!.getString(_activeKey);
           _activeId = _groups.any((g) => g.id == saved) ? saved! : _groups.first.id;
           await _migrateOldDefault();
+          await _applyDataMigrations();
           return;
         }
       } catch (_) {
@@ -103,6 +109,54 @@ class ScheduleStore extends ChangeNotifier {
     }
     _groups = _defaultGroups();
     _activeId = _groups.isEmpty ? '' : _groups.first.id;
+  }
+
+  /// پیاده‌سازی تغییرهای برنامهٔ پیش‌فرض روی داده‌هایی که کاربر از قبل دارد.
+  ///
+  /// چرا لازم است: `default_schedule.dart` فقط زمانی خوانده می‌شود که هیچ
+  /// داده‌ای در گوشی نباشد. کاربری که اپ را نصب کرده، دادهٔ قدیمی دارد و
+  /// بدون این تابع تغییرِ ساعت/استاد را نمی‌بیند. هر مهاجرت یک‌بار اجرا
+  /// می‌شود (با [_dataVersionKey] کنترل می‌شود) و تغییرهای دستیِ کاربر را
+  /// دست نمی‌زند چون فقط جلسه‌ای را عوض می‌کند که دقیقاً همان مقدار قدیمی
+  /// را داشته باشد.
+  Future<void> _applyDataMigrations() async {
+    final done = _prefs?.getInt(_dataVersionKey) ?? 1;
+    if (done >= currentDataVersion) return;
+
+    var changed = false;
+
+    // ── مهاجرت ۱: ساعت درس «مدیریت امور فرهنگی و تربیتی» (استاد سلطانی‌نژاد)
+    //    یکشنبه ۱۵:۳۰-۱۷:۳۰ → سه‌شنبه ۱۴:۰۰-۱۵:۳۰
+    for (var gi = 0; gi < _groups.length; gi++) {
+      final g = _groups[gi];
+      final courses = List<Course>.of(g.courses);
+      var groupChanged = false;
+      for (var ci = 0; ci < courses.length; ci++) {
+        final c = courses[ci];
+        if (c.prof.trim() != 'امیر سلطانی‌نژاد') continue;
+        final sessions = List<Session>.of(c.sessions);
+        var courseChanged = false;
+        for (var si = 0; si < sessions.length; si++) {
+          final se = sessions[si];
+          // فقط وقتی جلسه هنوز همان مقدار قدیمی است
+          if (se.day == 1 && (se.start - 15.5).abs() < 0.001 && (se.end - 17.5).abs() < 0.001) {
+            sessions[si] = se.copyWith(day: 3, start: 14.0, end: 15.5);
+            courseChanged = true;
+          }
+        }
+        if (courseChanged) {
+          courses[ci] = c.copyWith(sessions: sessions);
+          groupChanged = true;
+        }
+      }
+      if (groupChanged) {
+        _groups[gi] = g.copyWith(courses: courses);
+        changed = true;
+      }
+    }
+
+    await _prefs?.setInt(_dataVersionKey, currentDataVersion);
+    if (changed) await _commit();
   }
 
   /// اگر دادهٔ قدیمی فقط یک «گروه اصلی» داشت، نامش را به
