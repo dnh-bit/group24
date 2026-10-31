@@ -40,6 +40,18 @@ int _int(dynamic v, int def) {
   return int.tryParse(s) ?? double.tryParse(s)?.toInt() ?? def;
 }
 
+/// بولین تحمل‌پذیر: true/false، ۱/۰، "بله"/"خیر"، "on"/"off"
+bool _bool(dynamic v, bool def) {
+  if (v == null) return def;
+  if (v is bool) return v;
+  if (v is num) return v != 0;
+  final s = _normDigits(v.toString()).toLowerCase().trim();
+  if (s.isEmpty) return def;
+  if (const ['true', '1', 'yes', 'on', 'بله', 'آری', 'فعال', 'روشن'].contains(s)) return true;
+  if (const ['false', '0', 'no', 'off', 'خیر', 'نه', 'غیرفعال', 'خاموش'].contains(s)) return false;
+  return def;
+}
+
 double _dbl(dynamic v, double def) {
   if (v == null) return def;
   if (v is num) return v.toDouble();
@@ -92,12 +104,16 @@ class Session {
   final String room;
   final String type; // نظری / عملی
 
+  /// آلارم این جلسه خاموش باشد (مثلاً کلاسی که همیشه سر وقت نمی‌روی).
+  final bool alarmOff;
+
   const Session({
     required this.day,
     required this.start,
     required this.end,
     this.room = '',
     this.type = 'نظری',
+    this.alarmOff = false,
   });
 
   double get length => end - start;
@@ -108,15 +124,31 @@ class Session {
 
   bool overlaps(Session o) => o.day == day && start < o.end && o.start < end;
 
-  Session copyWith({int? day, double? start, double? end, String? room, String? type}) => Session(
+  Session copyWith({
+    int? day,
+    double? start,
+    double? end,
+    String? room,
+    String? type,
+    bool? alarmOff,
+  }) =>
+      Session(
         day: day ?? this.day,
         start: start ?? this.start,
         end: end ?? this.end,
         room: room ?? this.room,
         type: type ?? this.type,
+        alarmOff: alarmOff ?? this.alarmOff,
       );
 
-  Map<String, dynamic> toJson() => {'d': day, 's': start, 'e': end, 'room': room, 't': type};
+  Map<String, dynamic> toJson() => {
+        'd': day,
+        's': start,
+        'e': end,
+        'room': room,
+        't': type,
+        if (alarmOff) 'alarmOff': true,
+      };
 
   factory Session.fromJson(Map<String, dynamic> j) {
     var day = _dayOf(_pick(j, ['d', 'day', 'روز']) ?? _pick(j, ['weekday']), 0);
@@ -132,6 +164,7 @@ class Session {
       type: _str(_pick(j, ['t', 'type', 'نوع'])).isEmpty
           ? 'نظری'
           : _str(_pick(j, ['t', 'type', 'نوع'])),
+      alarmOff: _bool(_pick(j, ['alarmOff', 'alarm_off', 'silent', 'بی‌صدا']), false),
     );
   }
 }
@@ -201,6 +234,9 @@ class Course {
   final String note;
   final bool muted; // یادآوری‌های این درس خاموش
 
+  /// چند دقیقه قبل از کلاس آلارم بزند؛ null = از تنظیم کلی استفاده کن.
+  final int? alarmMinutes;
+
   const Course({
     required this.id,
     required this.name,
@@ -214,6 +250,7 @@ class Course {
     this.sessions = const [],
     this.note = '',
     this.muted = false,
+    this.alarmMinutes,
   });
 
   Color get color => Color(colorValue);
@@ -234,6 +271,8 @@ class Course {
     List<Session>? sessions,
     String? note,
     bool? muted,
+    int? alarmMinutes,
+    bool clearAlarmMinutes = false,
   }) =>
       Course(
         id: id ?? this.id,
@@ -248,6 +287,7 @@ class Course {
         sessions: sessions ?? this.sessions,
         note: note ?? this.note,
         muted: muted ?? this.muted,
+        alarmMinutes: clearAlarmMinutes ? null : (alarmMinutes ?? this.alarmMinutes),
       );
 
   Map<String, dynamic> toJson() => {
@@ -263,6 +303,7 @@ class Course {
         'sessions': [for (final s in sessions) s.toJson()],
         'note': note,
         'muted': muted,
+        if (alarmMinutes != null) 'alarmMinutes': alarmMinutes,
       };
 
   factory Course.fromJson(Map<String, dynamic> j) {
@@ -285,6 +326,12 @@ class Course {
           if (s is Map) Session.fromJson(Map<String, dynamic>.from(s)),
       ],
       note: _str(_pick(j, ['note', 'یادداشت'])),
+      alarmMinutes: () {
+        final v = _pick(j, ['alarmMinutes', 'alarm_minutes', 'alarm']);
+        if (v == null) return null;
+        final n = _int(v, -1);
+        return n < 0 ? null : n.clamp(0, 180).toInt();
+      }(),
       muted: _pick(j, ['muted']) == true,
     );
   }

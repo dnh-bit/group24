@@ -172,6 +172,27 @@ def as_color(v):
     return PALETTE0
 
 
+TRUE_WORDS = {'true', '1', 'yes', 'on', 'بله', 'آری', 'فعال', 'روشن'}
+FALSE_WORDS = {'false', '0', 'no', 'off', 'خیر', 'نه', 'غیرفعال', 'خاموش'}
+
+
+def as_bool(v, default=False):
+    if v is None:
+        return default
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)):
+        return v != 0
+    s = norm_digits(str(v)).lower().strip()
+    if not s:
+        return default
+    if s in TRUE_WORDS:
+        return True
+    if s in FALSE_WORDS:
+        return False
+    return default
+
+
 def session_from(j):
     day = as_day(pick(j, ['d', 'day', 'روز']) if pick(j, ['d', 'day', 'روز']) is not None else pick(j, ['weekday']), 0)
     if day < 0 or day > 6:
@@ -182,7 +203,8 @@ def session_from(j):
         end = start + 2
     return dict(day=day, start=min(max(start, 0), 24), end=min(max(end, 0), 24),
                 room=str(pick(j, ['room', 'کلاس', 'place', 'location']) or '').strip(),
-                type=(str(pick(j, ['t', 'type', 'نوع']) or '').strip() or 'نظری'))
+                type=(str(pick(j, ['t', 'type', 'نوع']) or '').strip() or 'نظری'),
+                alarmOff=as_bool(pick(j, ['alarmOff', 'alarm_off', 'silent', 'بی‌صدا'])))
 
 
 def exam_from(j):
@@ -203,6 +225,16 @@ def exam_from(j):
                 place=str(pick(j, ['place', 'محل', 'room', 'location']) or '').strip())
 
 
+def alarm_minutes_from(j):
+    v = pick(j, ['alarmMinutes', 'alarm_minutes', 'alarm'])
+    if v is None:
+        return None
+    n = as_int(v, -1)
+    if n < 0:
+        return None
+    return min(n, 180)
+
+
 def course_from(j, idx=0):
     name = str(pick(j, ['name', 'title', 'نام', 'درس']) or '').strip() or 'درس بدون نام'
     kind = str(pick(j, ['kind', 'نوع']) or '').strip() or 'تخصصی'
@@ -218,6 +250,7 @@ def course_from(j, idx=0):
         sessions=[session_from(s) for s in sessions if isinstance(s, dict)],
         exam=(exam_from(pick(j, ['exam', 'امتحان']))
               if isinstance(pick(j, ['exam', 'امتحان']), dict) else None),
+        alarmMinutes=alarm_minutes_from(j),
     )
 
 

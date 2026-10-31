@@ -242,6 +242,21 @@ class ScheduleStore extends ChangeNotifier {
     if (c != null) await upsert(c.copyWith(muted: muted));
   }
 
+  /// یک درس را در هر گروهی که باشد به‌روز می‌کند (صفحهٔ تنظیمات ممکن است
+  /// گروه اعلان‌ها را نشان دهد که با گروه فعال یکی نیست).
+  Future<void> updateCourse(Course c) async {
+    for (var i = 0; i < _groups.length; i++) {
+      final list = _groups[i].courses;
+      final j = list.indexWhere((x) => x.id == c.id);
+      if (j < 0) continue;
+      final next = List<Course>.of(list);
+      next[j] = c;
+      _groups[i] = _groups[i].copyWith(courses: next);
+      await _commit();
+      return;
+    }
+  }
+
   /// درس‌های گروه فعال را به برنامهٔ اولیهٔ همان گروه برمی‌گردونه.
   Future<void> resetToDefault() async {
     final list = _activeGroupIdToDefaultCourses();

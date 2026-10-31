@@ -40,7 +40,15 @@ class _SessionSheetState extends State<_SessionSheet> {
     super.dispose();
   }
 
-  Session get _session => Session(day: _day, start: _start, end: _end, room: _room.text.trim(), type: _type);
+  // alarmOff در ویرایش حفظ می‌شود تا روشن/خاموش‌کردن اعلانِ جلسه از بین نرود.
+  Session get _session => Session(
+        day: _day,
+        start: _start,
+        end: _end,
+        room: _room.text.trim(),
+        type: _type,
+        alarmOff: widget.initial?.alarmOff ?? false,
+      );
 
   @override
   Widget build(BuildContext context) {

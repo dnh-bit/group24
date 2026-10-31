@@ -26,8 +26,13 @@ Future<void> main() async {
   await ScheduleStore.instance.load();
   await NotificationService.instance.init();
   NotificationService.onNotificationTap = _routeNotificationTap;
+  NotificationService.onSnooze = (payload, minutes) =>
+      NotificationService.instance.snooze(payload, minutes);
   runApp(const Group24App());
 }
+
+/// دکمهٔ «۵ دقیقهٔ دیگر» روی آلارم: همان اعلان ۵ دقیقه بعد دوباره می‌آید.
+/// (سرویس خودش آلارم را می‌چیند؛ اینجا فقط ثبت می‌شود.)
 
 /// ضربهٔ کاربر روی اعلان: گروهِ برنامهٔ اعلان فعال می‌شه و کارتِ همان درس باز می‌شه.
 void _routeNotificationTap(String payload) {

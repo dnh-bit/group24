@@ -29,6 +29,7 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
   late int _units = widget.course?.units ?? 2;
   late int _color = widget.course?.colorValue ?? kCoursePalette.first;
   late bool _muted = widget.course?.muted ?? false;
+  late int? _alarmMinutes = widget.course?.alarmMinutes;
   late List<Session> _sessions = List.of(widget.course?.sessions ?? []);
   late bool _hasExam = widget.course?.exam != null;
   late JDate _examDate = widget.course?.exam?.date ?? _defaultExamDate();
@@ -90,7 +91,54 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
       sessions: _sessions,
       note: _note.text.trim(),
       muted: _muted,
+      alarmMinutes: _alarmMinutes,
     );
+  }
+
+  Future<void> _pickAlarmMinutes() async {
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text('زمان آلارم این درس',
+                    style: TextStyle(fontFamily: kTitleFont, fontSize: 24, color: AppColors.saffron)),
+              ),
+            ),
+            RadioListTile<int>(
+              value: -1,
+              groupValue: _alarmMinutes ?? -1,
+              activeColor: AppColors.saffron,
+              title: const Text('مثل تنظیم کلی برنامه', style: TextStyle(fontWeight: FontWeight.w700)),
+              onChanged: (_) => Navigator.pop(ctx, -1),
+            ),
+            for (final v in const [0, 5, 10, 15, 20, 30, 45, 60])
+              RadioListTile<int>(
+                value: v,
+                groupValue: _alarmMinutes ?? -1,
+                activeColor: AppColors.saffron,
+                title: Text(v == 0 ? 'سرِ وقت دقیق' : '${fa(v)} دقیقه قبل',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                onChanged: (_) => Navigator.pop(ctx, v),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    setState(() {
+      _alarmMinutes = picked == -1 ? null : picked;
+      _dirty = true;
+    });
   }
 
   String? _validateExam() {
@@ -332,6 +380,19 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
                             ),
                           ),
                           IconButton(
+                            tooltip: _sessions[i].alarmOff ? 'اعلان این جلسه خاموش است' : 'اعلان این جلسه روشن است',
+                            icon: Icon(
+                              _sessions[i].alarmOff
+                                  ? Icons.notifications_off_outlined
+                                  : Icons.notifications_active_outlined,
+                              color: _sessions[i].alarmOff ? AppColors.muted : AppColors.saffron,
+                            ),
+                            onPressed: () => setState(() {
+                              _sessions[i] = _sessions[i].copyWith(alarmOff: !_sessions[i].alarmOff);
+                              _dirty = true;
+                            }),
+                          ),
+                          IconButton(
                             tooltip: 'حذف جلسه',
                             icon: const Icon(Icons.delete_outline_rounded),
                             onPressed: () => setState(() {
@@ -409,6 +470,20 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
                 }),
                 title: const Text('یادآوری این درس روشن باشه'),
               ),
+              if (!_muted)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.alarm_rounded, color: AppColors.saffron),
+                  title: const Text('زمان آلارم این درس'),
+                  subtitle: Text(
+                    _alarmMinutes == null
+                        ? 'مثل تنظیم کلی برنامه'
+                        : (_alarmMinutes == 0 ? 'سرِ وقت شروع کلاس' : '${fa(_alarmMinutes!)} دقیقه قبل از کلاس'),
+                    style: const TextStyle(fontSize: 12.5),
+                  ),
+                  trailing: const Icon(Icons.chevron_left_rounded),
+                  onTap: _pickAlarmMinutes,
+                ),
               TextFormField(
                 controller: _note,
                 maxLines: 3,
