@@ -90,6 +90,7 @@ class MainActivity : FlutterActivity() {
                 )
             }
             manufacturer.contains("samsung") -> {
+                // مسیر واقعی سامسونگ: Battery and device care → Battery
                 candidates += component(
                     "com.samsung.android.lool",
                     "com.samsung.android.sm.ui.battery.BatteryActivity",
@@ -97,6 +98,21 @@ class MainActivity : FlutterActivity() {
                 candidates += component(
                     "com.samsung.android.sm",
                     "com.samsung.android.sm.ui.battery.BatteryActivity",
+                )
+                candidates += component(
+                    "com.samsung.android.lool",
+                    "com.samsung.android.sm.ui.battery.backgroundlimit.BatteryBackgroundLimitActivity",
+                )
+                candidates += component(
+                    "com.samsung.android.sm",
+                    "com.samsung.android.sm.ui.battery.backgroundlimit.BatteryBackgroundLimitActivity",
+                )
+                // صفحهٔ «محدودیت استفاده در پس‌زمینه» در اندروید ۱۳+ سامسونگ
+                candidates += Intent("com.samsung.android.sm.ACTION_BATTERY")
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                candidates += component(
+                    "com.samsung.android.lool",
+                    "com.samsung.android.sm.ui.devicecare.DeviceCareActivity",
                 )
             }
             manufacturer.contains("oppo") || manufacturer.contains("realme") || manufacturer.contains("oneplus") -> {
@@ -139,11 +155,10 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        // صفحهٔ عمومی «تنظیمات اپ» به‌عنوان پشتیبان
-        candidates += Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-            .setData(Uri.parse("package:$packageName"))
-        candidates += Intent(Settings.ACTION_SETTINGS)
-
+        // اگر هیچ صفحهٔ مخصوص سازنده‌ای پیدا نشد، از باز کردن «تنظیمات اپ»
+        // خودداری می‌کنیم: کاربر را به صفحه‌ای می‌برد که هیچ ربطی به Autostart
+        // ندارد و فقط گیج می‌شود. به‌جایش false برمی‌گردانیم تا اپ راهنمای
+        // گام‌به‌گام فارسی نشان بدهد.
         return launchFirst(candidates)
     }
 
@@ -159,16 +174,33 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    /**
+     * اولین اکتیویتی که واقعاً روی این گوشی هست را باز می‌کند.
+     *
+     * نکتهٔ مهم: `resolveActivity` با PackageManager های سخت‌گیر (اندروید ۱۱+)
+     * برای اکتیویتی‌های پکیج‌های دیگر ممکن است null برگرداند حتی وقتی اکتیویتی
+     * وجود دارد. پس هم resolveActivity را چک می‌کنیم هم خودِ startActivity را
+     * در try/catch صدا می‌زنیم.
+     */
     private fun launchFirst(intents: List<Intent>): Boolean {
         for (raw in intents) {
             val intent = Intent(raw).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             try {
-                if (intent.resolveActivity(packageManager) != null) {
+                // اگر resolve موفق بود، مستقیم باز کن
+                val resolved = intent.resolveActivity(packageManager)
+                if (resolved != null) {
                     startActivity(intent)
                     return true
                 }
             } catch (e: Exception) {
-                // این سازنده این صفحه را ندارد → بعدی
+                // ادامه بده
+            }
+            try {
+                // حتی اگر resolve null داد، ممکن است باز شود (محدودیت PackageManager)
+                startActivity(intent)
+                return true
+            } catch (e: Exception) {
+                // این صفحه روی این گوشی نیست → بعدی
             }
         }
         return false

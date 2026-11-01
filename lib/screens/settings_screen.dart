@@ -78,6 +78,119 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     });
   }
 
+  /// اگر گوشی صفحهٔ Autostart جدا نداشت، به‌جای باز کردن صفحهٔ بی‌ربط،
+  /// راهنمای گام‌به‌گام همین گوشی را نشان می‌دهد.
+  void _showAutoStartGuide() {
+    final m = _manufacturer.toLowerCase();
+    final steps = <String>[];
+    if (m.contains('samsung')) {
+      steps.addAll([
+        '«تنظیمات» گوشی را باز کن.',
+        'برو به «مراقبت از دستگاه» (Device care) یا «باتری و مراقبت دستگاه».',
+        'روی «باتری» بزن.',
+        '«محدودیت‌های پس‌زمینه» یا «Background usage limits» را باز کن.',
+        '«برنامه‌های خواب‌رفته» (Sleeping apps) را ببین و «برنامهٔ درسی» را از فهرست حذف کن.',
+        'در «برنامه‌های عمیقاً خواب‌رفته» هم نباشد.',
+      ]);
+    } else if (m.contains('xiaomi') || m.contains('redmi') || m.contains('poco')) {
+      steps.addAll([
+        '«تنظیمات» گوشی را باز کن.',
+        'برو به «برنامه‌ها» ← «مدیریت برنامه‌ها».',
+        '«برنامهٔ درسی» را پیدا کن.',
+        '«Autostart» را روشن کن.',
+        '«ذخیرهٔ باتری» را روی «بدون محدودیت» بگذار.',
+      ]);
+    } else if (m.contains('huawei') || m.contains('honor')) {
+      steps.addAll([
+        '«تنظیمات» گوشی را باز کن.',
+        'برو به «باتری» ← «راه‌اندازی برنامه» (App launch).',
+        '«برنامهٔ درسی» را پیدا کن و «مدیریت دستی» را انتخاب کن.',
+        'هر سه گزینه (Auto-launch، Secondary launch، Run in background) را روشن کن.',
+      ]);
+    } else if (m.contains('oppo') || m.contains('realme') || m.contains('oneplus')) {
+      steps.addAll([
+        '«تنظیمات» گوشی را باز کن.',
+        'برو به «باتری» ← «بهینه‌سازی باتری».',
+        '«برنامهٔ درسی» را پیدا کن و «اجازهٔ اجرای خودکار» را روشن کن.',
+        '«مصرف باتری در پس‌زمینه» را روی «بدون محدودیت» بگذار.',
+      ]);
+    } else if (m.contains('vivo') || m.contains('iqoo')) {
+      steps.addAll([
+        '«تنظیمات» گوشی را باز کن.',
+        'برو به «باتری» ← «مصرف باتری در پس‌زمینه».',
+        '«برنامهٔ درسی» را پیدا کن و اجازهٔ اجرا در پس‌زمینه را بده.',
+        'در «i Manager» ← «Autostart» هم روشنش کن.',
+      ]);
+    } else {
+      steps.addAll([
+        '«تنظیمات» گوشی را باز کن.',
+        'برو به «برنامه‌ها» ← «برنامهٔ درسی».',
+        '«باتری» را باز کن و «بدون محدودیت» (Unrestricted) را انتخاب کن.',
+        'اگر گزینهٔ «اجرای خودکار» یا «Autostart» بود، روشنش کن.',
+      ]);
+    }
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('اجازهٔ اجرا در پس‌زمینه'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'این گوشی صفحهٔ اختصاصی Autostart ندارد؛ باید دستی انجام شود:',
+                style: const TextStyle(fontSize: 13, height: 1.7),
+              ),
+              const SizedBox(height: 10),
+              for (var i = 0; i < steps.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: AppColors.saffron,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text('${fa(i + 1)}',
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(steps[i], style: const TextStyle(fontSize: 13, height: 1.6)),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 6),
+              const Text(
+                'بدون این تنظیم هم اپ کار می‌کند؛ فقط ممکن است آلارم چند دقیقه دیر بیاید.',
+                style: TextStyle(fontSize: 12, color: AppColors.muted, height: 1.6),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('فهمیدم')),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              BatteryService.instance.openAppSettings();
+            },
+            child: const Text('تنظیمات اپ'),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// درخواست استثنا از بهینه‌سازی باتری
   Future<void> _askBattery() async {
     final opened = await BatteryService.instance.openBatterySettings();
@@ -410,7 +523,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                   button: 'باز کن',
                   onTap: () async {
                     final ok = await BatteryService.instance.openAutoStart();
-                    if (!ok) _toast('این گوشی صفحهٔ Autostart جدا ندارد؛ تنظیمات اپ باز می‌شود.');
+                    if (!ok && mounted) _showAutoStartGuide();
                   },
                 ),
               ],
