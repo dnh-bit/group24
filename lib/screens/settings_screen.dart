@@ -344,105 +344,8 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
         children: [
-          // ═══════════ ۱. اعلان‌ها ═══════════
-          const _SectionTitle('اعلان‌ها'),
-
-          _Card(children: [
-            SwitchListTile(
-              value: s.classReminders,
-              onChanged: _toggleClass,
-              secondary: const Icon(Icons.notifications_active_rounded, color: AppColors.saffron),
-              title: const Text('یادآوری کلاس‌ها', style: _tTile),
-              subtitle: const Text('قبل از شروع هر کلاس خبرت می‌کنم'),
-            ),
-            if (s.classReminders) ...[
-              const Divider(height: 1, indent: 56),
-              _SliderBlock(
-                minutes: _minutes,
-                label: m == 0 ? 'سرِ وقت' : '${fa(m)} دقیقه',
-                onChanged: (v) => setState(() => _minutes = v),
-                onDone: (v) => _save(s.copyWith(minutesBefore: v.round())),
-                selected: s.minutesBefore,
-                onPreset: (q) {
-                  setState(() => _minutes = q.toDouble());
-                  _save(s.copyWith(minutesBefore: q));
-                },
-                preview: notifNext == null
-                    ? null
-                    : 'مثلاً برای «${notifNext.ref.course.shortName}» ساعت '
-                        '${fmtTime(notifNext.ref.session.start - m / 60)} خبرت می‌کنم.',
-              ),
-            ],
-          ]),
-
-          const SizedBox(height: 10),
-
-          _Card(children: [
-            SwitchListTile(
-              value: s.examReminders,
-              onChanged: _toggleExam,
-              secondary: const Icon(Icons.event_note_rounded, color: AppColors.olive),
-              title: const Text('یادآوری امتحان‌ها', style: _tTile),
-              subtitle: const Text('شب قبل ساعت ۲۰:۰۰ + یادآوری قبل از شروع'),
-            ),
-            if (s.examReminders) ...[
-              const Divider(height: 1, indent: 56),
-              _LinkTile(
-                icon: Icons.alarm_rounded,
-                color: AppColors.olive,
-                title: 'چند دقیقه قبل از امتحان؟',
-                value: s.examAlarmMinutes == 0 ? 'سرِ وقت' : '${fa(s.examAlarmMinutes)} دقیقه قبل',
-                onTap: () => _pickExamMinutes(s),
-              ),
-              SwitchListTile(
-                value: s.examFullAlarm,
-                onChanged: (v) => _save(s.copyWith(examFullAlarm: v)),
-                secondary: const Icon(Icons.notifications_paused_rounded, color: AppColors.olive),
-                title: const Text('آلارم تمام‌صفحه برای امتحان', style: _tTile),
-                subtitle: const Text('اگر خاموش باشد فقط یک اعلان ساده می‌آید'),
-              ),
-            ],
-          ]),
-
-          // دسترسی‌ها فقط وقتی واقعاً لازم است نمایش داده می‌شوند
-          if (_isAndroid && (!_exactOk || !_fullScreenOk)) ...[
-            const SizedBox(height: 10),
-            _Card(children: [
-              if (!_exactOk)
-                _ActionTile(
-                  icon: Icons.alarm_on_rounded,
-                  title: 'اجازهٔ آلارم دقیق',
-                  subtitle: 'تا آلارم دقیقاً سرِ همان دقیقه بیاید',
-                  onTap: () => _notif.requestExactAlarms(),
-                ),
-              if (!_exactOk && !_fullScreenOk) const Divider(height: 1, indent: 56),
-              if (!_fullScreenOk)
-                _ActionTile(
-                  icon: Icons.fullscreen_rounded,
-                  title: 'اجازهٔ نمایش تمام‌صفحه',
-                  subtitle: 'اندروید ۱۴+ برای آلارم روی صفحهٔ قفل این را می‌خواهد',
-                  onTap: _askFullScreen,
-                ),
-            ]),
-          ],
-
-          // ═══════════ ۲. اعلان هر درس ═══════════
-          const SizedBox(height: 24),
-          const _SectionTitle('اعلان هر درس'),
-
-          _Card(children: [
-            // کل این بخش یک کشویی است: بسته = فقط عنوان و خلاصه،
-            // باز = فهرست کامل درس‌ها برای انتخاب اعلان.
-            _CourseListExpansion(
-              group: notifGroup,
-              onChanged: () => setState(() {}),
-            ),
-          ]),
-
-          // ═══════════ ۳. آلارم ═══════════
-          const SizedBox(height: 24),
-          const _SectionTitle('آلارم'),
-
+          // ═══════════ ۱. آلارم: رفتار پایه ═══════════
+          const _SectionTitle('آلارم', icon: Icons.alarm_on_rounded),
           _Card(children: [
             SwitchListTile(
               value: s.fullScreenAlarm,
@@ -467,77 +370,94 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             ),
             const Divider(height: 1, indent: 56),
             _LinkTile(
-              icon: Icons.send_rounded,
+              icon: Icons.play_circle_outline_rounded,
               title: 'آلارم آزمایشی',
-              value: 'همین حالا امتحان کن',
+              value: 'یک بار امتحان کن',
               onTap: () async {
                 await _notif.requestPermission();
-                await _notif.showTest(m);
+                await _notif.showTest(_minutes.round());
               },
             ),
           ]),
 
-          // ── باتری: فقط روی اندروید و فقط وقتی واقعاً لازم است ──
-          if (_isAndroid) ...[
-            const SizedBox(height: 10),
-            _Card(children: [
-              ListTile(
-                leading: Icon(
-                  _batteryOk ? Icons.battery_full_rounded : Icons.battery_alert_rounded,
-                  color: _batteryOk ? AppColors.olive : AppColors.saffron,
-                ),
-                title: const Text('باتری و پس‌زمینه', style: _tTile),
-                subtitle: Text(
-                  _batteryOk
-                      ? 'آلارم‌ها آزادند. اگر بازهم دیر آمد، تنظیم Autostart گوشی را چک کن.'
-                      : 'گوشی ممکن است آلارم را عقب بیندازد. با یک لمس اجازه بده.',
-                  style: const TextStyle(fontSize: 12.5, height: 1.6),
-                ),
-                trailing: const Icon(Icons.expand_more_rounded, color: AppColors.muted),
-                onTap: () => setState(() => _batteryOpen = !_batteryOpen),
-              ),
-              if (_batteryOpen) ...[
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-                  child: Text(
-                    BatteryService.aggressiveVendor(_manufacturer)
-                        ? 'گوشی ${BatteryService.vendorLabel(_manufacturer)} است. اندروید اجازه می‌دهد آلارم‌ها آزاد باشند:'
-                        : 'اگر آلارم دیر آمد، اجازه بده اپ در پس‌زمینه بیدار بماند:',
-                    style: const TextStyle(fontSize: 12, color: AppColors.muted, height: 1.6),
-                  ),
-                ),
-                _ActionTile(
-                  icon: Icons.battery_charging_full_rounded,
-                  title: 'آزاد کردن باتری',
-                  subtitle: _batteryOk
-                      ? 'مستثنا شده — آلارم‌ها محدود نمی‌شوند'
-                      : 'این اپ از بهینه‌سازی باتری مستثنا شود',
-                  button: _batteryOk ? 'تغییر' : 'اجازه',
-                  onTap: _askBattery,
-                ),
-                _ActionTile(
-                  icon: Icons.restart_alt_rounded,
-                  title: 'Autostart و پس‌زمینه',
-                  subtitle: 'اجازهٔ خودکار اجرا شدن و ماندن در پس‌زمینه',
-                  button: 'باز کن',
-                  onTap: () async {
-                    final ok = await BatteryService.instance.openAutoStart();
-                    if (!ok && mounted) _showAutoStartGuide();
-                  },
-                ),
-              ],
-            ]),
-          ],
-
-          // ═══════════ ۴. برنامه و گروه‌ها ═══════════
+          // ═══════════ ۲. یادآوری‌ها: چه‌وقت خبرت کنم ═══════════
           const SizedBox(height: 24),
-          const _SectionTitle('برنامه'),
+          const _SectionTitle('یادآوری‌ها', icon: Icons.notifications_active_rounded),
+          _Card(children: [
+            SwitchListTile(
+              value: s.classReminders,
+              onChanged: _toggleClass,
+              secondary: const Icon(Icons.school_outlined, color: AppColors.saffron),
+              title: const Text('یادآوری کلاس‌ها', style: _tTile),
+              subtitle: const Text('قبل از شروع هر کلاس خبرت می‌کنم'),
+            ),
+            if (s.classReminders)
+              _SliderBlock(
+                minutes: _minutes,
+                label: m == 0 ? 'سرِ وقت' : '${fa(m)} دقیقه',
+                onChanged: (v) => setState(() => _minutes = v),
+                onDone: (v) => _save(s.copyWith(minutesBefore: v.round())),
+                selected: s.minutesBefore,
+                onPreset: (q) {
+                  setState(() => _minutes = q.toDouble());
+                  _save(s.copyWith(minutesBefore: q));
+                },
+                preview: notifNext == null
+                    ? null
+                    : 'مثلاً برای «${notifNext.ref.course.shortName}» ساعت '
+                        '${fmtTime(notifNext.ref.session.start - m / 60)} خبرت می‌کنم.',
+              ),
+            const Divider(height: 1, indent: 56),
+            SwitchListTile(
+              value: s.examReminders,
+              onChanged: _toggleExam,
+              secondary: const Icon(Icons.event_note_rounded, color: AppColors.olive),
+              title: const Text('یادآوری امتحان‌ها', style: _tTile),
+              subtitle: const Text('شب قبل ساعت ۲۰:۰۰ + یادآوری قبل از شروع'),
+            ),
+            if (s.examReminders) ...[
+              Padding(
+                padding: const EdgeInsets.only(right: 56),
+                child: _LinkTile(
+                  icon: Icons.timer_outlined,
+                  color: AppColors.olive,
+                  title: 'چند دقیقه قبل از امتحان؟',
+                  value: s.examAlarmMinutes == 0 ? 'سرِ وقت' : '${fa(s.examAlarmMinutes)} دقیقه قبل',
+                  onTap: () => _pickExamMinutes(s),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 56),
+                child: SwitchListTile(
+                  contentPadding: const EdgeInsets.only(left: 16, right: 16),
+                  value: s.examFullAlarm,
+                  onChanged: (v) => _save(s.copyWith(examFullAlarm: v)),
+                  secondary: const Icon(Icons.fullscreen_rounded, color: AppColors.olive),
+                  title: const Text('آلارم تمام‌صفحه برای امتحان', style: _tTile),
+                  subtitle: const Text('اگر خاموش باشد فقط یک اعلان ساده می‌آید'),
+                ),
+              ),
+            ],
+          ]),
 
+          // ═══════════ ۳. اعلان هر درس ═══════════
+          const SizedBox(height: 24),
+          const _SectionTitle('اعلان هر درس', icon: Icons.tune_rounded),
+          _Card(children: [
+            // کل این بخش یک کشویی است: بسته = عنوان + خلاصه، باز = فهرست درس‌ها
+            _CourseListExpansion(
+              group: notifGroup,
+              onChanged: () => setState(() {}),
+            ),
+          ]),
+
+          // ═══════════ ۴. برنامه ═══════════
+          const SizedBox(height: 24),
+          const _SectionTitle('برنامه', icon: Icons.calendar_month_rounded),
           _Card(children: [
             _LinkTile(
-              icon: Icons.groups_2_rounded,
-              title: 'گروهی که اعلان می‌دهد',
+              icon: Icons.notifications_none_rounded,
+              title: 'کدام گروه اعلان بدهد',
               value: notifGroup.name,
               onTap: () => _pickNotifGroup(s, store),
             ),
@@ -559,43 +479,135 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                 MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
               ),
             ),
-          ]),
-
-          const SizedBox(height: 10),
-
-          _Card(children: [
+            const Divider(height: 1, indent: 56),
             SwitchListTile(
               value: s.cancelOneHourClasses,
               onChanged: _toggleCancelOneHour,
               secondary: const Icon(Icons.timer_off_outlined, color: AppColors.saffron),
               title: const Text('لغو کلاس‌های تک‌ساعته', style: _tTile),
-              subtitle: const Text('کلاس‌های یک‌ساعته برگزار نشوند و اعلان نگیرند (ویژهٔ فرهنگیان)'),
+              subtitle: const Text('کلاس‌های یک‌ساعته از جدول حذف شوند (ویژهٔ فرهنگیان)'),
             ),
           ]),
 
-          // ═══════════ ۵. درباره ═══════════
-          const SizedBox(height: 24),
-          const _SectionTitle('درباره'),
+          // ═══════════ ۵. سیستم (فقط اندروید) ═══════════
+          if (_isAndroid) ...[
+            const SizedBox(height: 24),
+            const _SectionTitle('سیستم', icon: Icons.battery_charging_full_rounded),
+            _Card(children: [
+              // اجازه‌ها فقط وقتی کم است
+              if (!_exactOk) ...[
+                _ActionTile(
+                  icon: Icons.alarm_on_rounded,
+                  title: 'اجازهٔ آلارم دقیق',
+                  subtitle: 'تا آلارم دقیقاً سرِ همان دقیقه بیاید',
+                  onTap: () => _notif.requestExactAlarms(),
+                ),
+                const Divider(height: 1, indent: 56),
+              ],
+              if (!_fullScreenOk) ...[
+                _ActionTile(
+                  icon: Icons.fullscreen_rounded,
+                  title: 'اجازهٔ نمایش تمام‌صفحه',
+                  subtitle: 'اندروید ۱۴+ برای آلارم روی صفحهٔ قفل این را می‌خواهد',
+                  onTap: _askFullScreen,
+                ),
+                const Divider(height: 1, indent: 56),
+              ],
+              // باتری
+              ListTile(
+                leading: Icon(
+                  _batteryOk ? Icons.battery_full_rounded : Icons.battery_alert_rounded,
+                  color: _batteryOk ? AppColors.olive : AppColors.saffron,
+                ),
+                title: const Text('باتری و پس‌زمینه', style: _tTile),
+                subtitle: Text(
+                  _batteryOk
+                      ? 'آلارم‌ها محدود نمی‌شوند'
+                      : 'گوشی ممکن است آلارم را عقب بیندازد',
+                  style: const TextStyle(fontSize: 12.5),
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!_batteryOk)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 6),
+                        child: Icon(Icons.error_outline_rounded,
+                            size: 18, color: AppColors.saffron),
+                      ),
+                    Icon(_batteryOpen ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                        color: AppColors.muted),
+                  ],
+                ),
+                onTap: () => setState(() => _batteryOpen = !_batteryOpen),
+              ),
+              if (_batteryOpen) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(56, 0, 16, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        BatteryService.aggressiveVendor(_manufacturer)
+                            ? 'گوشی ${BatteryService.vendorLabel(_manufacturer)}: اجازه بده اپ در پس‌زمینه بیدار بماند.'
+                            : 'اگر آلارم دیر آمد، اجازه بده اپ در پس‌زمینه بیدار بماند.',
+                        style: const TextStyle(fontSize: 12, color: AppColors.muted, height: 1.6),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _askBattery,
+                              icon: const Icon(Icons.battery_charging_full_rounded, size: 18),
+                              label: Text(_batteryOk ? 'تغییر استثنا' : 'آزاد کردن باتری',
+                                  style: const TextStyle(fontSize: 12.5)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final ok = await BatteryService.instance.openAutoStart();
+                                if (!ok && mounted) _showAutoStartGuide();
+                              },
+                              icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                              label: const Text('Autostart', style: TextStyle(fontSize: 12.5)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                  ),
+                ),
+              ],
+            ]),
+          ],
 
+          // ═══════════ ۶. درباره ═══════════
+          const SizedBox(height: 24),
+          const _SectionTitle('درباره', icon: Icons.info_outline_rounded),
           _Card(children: [
             const ListTile(
-              leading: Icon(Icons.info_outline_rounded),
-              title: Text('دربارهٔ برنامه درسی', style: _tTile),
+              leading: Icon(Icons.description_outlined, color: AppColors.muted),
+              title: Text('برنامهٔ درسی', style: _tTile),
               subtitle: Text(
-                'برنامهٔ هفتگی کلاس‌ها و تاریخ امتحان‌ها با آلارم و یادآوری.\n'
+                'برنامهٔ هفتگی کلاس‌ها و امتحان‌ها با آلارم.\n'
                 'کاملاً آفلاین — هیچ اینترنتی، هیچ جمع‌آوری داده‌ای.',
+                style: TextStyle(height: 1.6, fontSize: 12.5),
               ),
             ),
             const Divider(height: 1, indent: 56),
             const ListTile(
               leading: Icon(Icons.person_outline_rounded, color: AppColors.saffron),
-              title: Text('سازنده و توسعه‌دهنده', style: _tTile),
+              title: Text('سازنده', style: _tTile),
               subtitle: Text('علیرضا عودی\nAlirezaoudi@cfu.ac.ir'),
             ),
             const Divider(height: 1, indent: 56),
             ListTile(
               leading: const Icon(Icons.tag_rounded, color: AppColors.muted),
-              title: const Text('نسخهٔ نصب‌شده', style: _tTile),
+              title: const Text('نسخه', style: _tTile),
               subtitle: Text(versionLabel,
                   textDirection: TextDirection.ltr, textAlign: TextAlign.left),
             ),
@@ -1085,15 +1097,28 @@ class _CourseAlarmExpansionState extends State<_CourseAlarmExpansion> {
   }
 }
 
+/// عنوان بخش: آیکون کوچک + نام، با یک خط نازک زیرش تا مرز بخش‌ها واضح باشد.
 class _SectionTitle extends StatelessWidget {
   final String text;
-  const _SectionTitle(this.text);
+  final IconData icon;
+  const _SectionTitle(this.text, {required this.icon});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
-      child: Text(text, style: const TextStyle(fontFamily: kTitleFont, fontSize: 26, color: AppColors.olive)),
+      padding: const EdgeInsets.fromLTRB(8, 14, 8, 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.olive),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text,
+                style: const TextStyle(
+                    fontFamily: kTitleFont, fontSize: 24, color: AppColors.olive)),
+          ),
+          Container(width: 28, height: 2, color: AppColors.line),
+        ],
+      ),
     );
   }
 }
