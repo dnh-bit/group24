@@ -35,16 +35,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _page = 0;
   static const _total = 4;
 
-  late CourseAlert _alert = _svc.settings.defaultAlert;
-  bool _classReminders = _svc.settings.classReminders;
-  bool _examReminders = _svc.settings.examReminders;
-  bool _fullScreen = _svc.settings.fullScreenAlarm;
+  late CourseAlert _alert;
+  late bool _classReminders;
+  late bool _examReminders;
+  late bool _fullScreen;
   bool _busy = false;
 
   /// اگر کاربر در این اسلاید اجازه گرفت، دیگر صفحهٔ اصلی دوباره نمی‌پرسد.
   bool _permissionAsked = false;
 
   bool get _isAndroid => !kIsWeb && Platform.isAndroid;
+
+  @override
+  void initState() {
+    super.initState();
+    // مقادیر فعلی تنظیمات را برمی‌داریم (نه در initializer، چون _svc آنجا
+    // در دسترس نیست)
+    final s = _svc.settings;
+    _alert = s.defaultAlert;
+    _classReminders = s.classReminders;
+    _examReminders = s.examReminders;
+    _fullScreen = s.fullScreenAlarm;
+  }
 
   @override
   void dispose() {

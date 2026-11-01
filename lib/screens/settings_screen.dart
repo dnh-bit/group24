@@ -681,13 +681,11 @@ class _ActionTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  final String button;
   const _ActionTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.button = 'اجازه',
   });
 
   @override
@@ -696,7 +694,7 @@ class _ActionTile extends StatelessWidget {
       leading: Icon(icon, color: AppColors.saffron),
       title: Text(title, style: _tTile),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 12.5)),
-      trailing: FilledButton(onPressed: onTap, child: Text(button)),
+      trailing: FilledButton(onPressed: onTap, child: const Text('اجازه')),
     );
   }
 }

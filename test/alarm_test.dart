@@ -75,11 +75,18 @@ void main() {
       expect(c.alertsOn, isFalse);
     });
 
-    test('حالت در JSON ذخیره و بازگردانی می‌شود', () {
+    test('حالتِ انتخاب‌شده در JSON ذخیره و بازگردانی می‌شود', () {
       for (final a in CourseAlert.values) {
-        final c = Course(id: 1, name: 'x', colorValue: kCoursePalette[0], alert: a);
+        final c = Course(
+          id: 1,
+          name: 'x',
+          colorValue: kCoursePalette[0],
+          alert: a,
+          alertExplicit: true,
+        );
         final back = Course.fromJson(c.toJson());
         expect(back.alert, a, reason: 'حالت ${a.name} گم شد');
+        expect(back.alertExplicit, isTrue, reason: 'انتخاب‌شدگی ${a.name} گم شد');
       }
     });
 
@@ -166,8 +173,17 @@ void main() {
     });
 
     test('alertExplicit در JSON ذخیره و بازگردانی می‌شود', () {
-      final explicit = Course(id: 1, name: 'x', colorValue: kCoursePalette[0], alert: CourseAlert.notice);
-      expect(Course.fromJson(explicit.toJson()).alertExplicit, isTrue);
+      final explicit = Course(
+        id: 1,
+        name: 'x',
+        colorValue: kCoursePalette[0],
+        alert: CourseAlert.notice,
+        alertExplicit: true,
+      );
+      final back = Course.fromJson(explicit.toJson());
+      expect(back.alertExplicit, isTrue);
+      expect(back.alert, CourseAlert.notice);
+
       final auto = Course(id: 2, name: 'y', colorValue: kCoursePalette[0]);
       expect(Course.fromJson(auto.toJson()).alertExplicit, isFalse);
     });
