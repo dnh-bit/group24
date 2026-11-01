@@ -39,8 +39,9 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
   }
 
   /// چرخهٔ اعلان درس: آلارم → اعلان → خاموش → آلارم
+  /// (از حالت مؤثر شروع می‌کند، نه مقدار خامِ ذخیره‌شده)
   Future<void> _cycleAlert(Course c) async {
-    final next = c.alert.next;
+    final next = NotificationService.effectiveAlert(c).next;
     await _store.updateCourse(c.copyWith(alert: next, muted: next == CourseAlert.off));
     await NotificationService.instance.reschedule();
     if (mounted) {
@@ -434,14 +435,14 @@ class _CourseTile extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(left: 4),
                   child: IconButton(
-                    tooltip: 'اعلان: ${c.alert.label}',
+                    tooltip: 'اعلان: ${NotificationService.effectiveAlert(c).label}',
                     icon: Icon(
-                      switch (c.alert) {
+                      switch (NotificationService.effectiveAlert(c)) {
                         CourseAlert.alarm => Icons.alarm_on_rounded,
                         CourseAlert.notice => Icons.notifications_active_outlined,
                         CourseAlert.off => Icons.notifications_off_outlined,
                       },
-                      color: switch (c.alert) {
+                      color: switch (NotificationService.effectiveAlert(c)) {
                         CourseAlert.alarm => AppColors.saffron,
                         CourseAlert.notice => AppColors.olive,
                         CourseAlert.off => AppColors.muted,

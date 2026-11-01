@@ -126,6 +126,51 @@ void main() {
     });
   });
 
+  group('پیش‌فرض اعلان درس‌ها', () {
+    test('درس تنظیم‌نشده از پیش‌فرض تنظیمات پیروی می‌کند', () {
+      final c = Course(id: 1, name: 'ریاضی', colorValue: kCoursePalette[0]);
+      expect(c.alertExplicit, isFalse, reason: 'درس تازه نباید «انتخاب‌شده» باشد');
+    });
+
+    test('انتخاب دستی، درس را explicit می‌کند', () {
+      final c = Course(id: 1, name: 'ریاضی', colorValue: kCoursePalette[0]);
+      expect(c.copyWith(alert: CourseAlert.notice).alertExplicit, isTrue);
+      // و بعد از آن، copyWithهای دیگر آن را از دست نمی‌دهند
+      expect(c.copyWith(alert: CourseAlert.notice).copyWith(units: 3).alertExplicit, isTrue);
+    });
+
+    test('alertExplicit در JSON ذخیره و بازگردانی می‌شود', () {
+      final explicit = Course(id: 1, name: 'x', colorValue: kCoursePalette[0], alert: CourseAlert.notice);
+      expect(Course.fromJson(explicit.toJson()).alertExplicit, isTrue);
+      final auto = Course(id: 2, name: 'y', colorValue: kCoursePalette[0]);
+      expect(Course.fromJson(auto.toJson()).alertExplicit, isFalse);
+    });
+
+    test('فایل چت‌بات که alert دارد → explicit', () {
+      final c = Course.fromJson({'id': 1, 'name': 'x', 'color': 0, 'alert': 'notice'});
+      expect(c.alertExplicit, isTrue);
+      expect(c.alert, CourseAlert.notice);
+      // فایل بدون کلید alert → از پیش‌فرض
+      final d = Course.fromJson({'id': 2, 'name': 'y', 'color': 0});
+      expect(d.alertExplicit, isFalse);
+    });
+
+    test('پیش‌فرض تنظیمات: آلارم، و onboarding ندیده', () {
+      const s = AppSettings();
+      expect(s.defaultAlert, CourseAlert.alarm);
+      expect(s.onboarded, isFalse);
+    });
+
+    test('copyWith پیش‌فرض و onboarded را حفظ می‌کند', () {
+      const s = AppSettings();
+      final t = s.copyWith(defaultAlert: CourseAlert.notice, onboarded: true);
+      expect(t.defaultAlert, CourseAlert.notice);
+      expect(t.onboarded, isTrue);
+      expect(t.copyWith(minutesBefore: 20).defaultAlert, CourseAlert.notice);
+      expect(t.copyWith(minutesBefore: 20).onboarded, isTrue);
+    });
+  });
+
   group('کلید اعلان هر جلسه', () {
     test('جلسهٔ دو ساعته پیش‌فرض اعلان می‌گیرد', () {
       const s = Session(day: 0, start: 8, end: 10);

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/default_schedule.dart';
 import '../data/models.dart';
 import '../data/schedule_store.dart';
+import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../theme.dart';
 import '../utils.dart';
@@ -484,9 +485,9 @@ class _SessionCard extends StatelessWidget {
                                   style: const TextStyle(
                                       color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
                             ),
-                            if (!c.alertsOn || c.muted)
+                            if (NotificationService.effectiveAlert(c) == CourseAlert.off)
                               const Icon(Icons.notifications_off_rounded, size: 16, color: Colors.white)
-                            else if (c.alert == CourseAlert.notice)
+                            else if (NotificationService.effectiveAlert(c) == CourseAlert.notice)
                               const Icon(Icons.notifications_outlined, size: 16, color: Colors.white),
                           ],
                         ),

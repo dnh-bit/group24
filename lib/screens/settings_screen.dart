@@ -256,6 +256,20 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     _toast('صدای آلارم: ${picked.label}');
   }
 
+  /// انتخاب حالت پیش‌فرض اعلان برای همهٔ درس‌های تنظیم‌نشده
+  Future<void> _pickDefaultAlert(AppSettings s) async {
+    final picked = await _pickFromSheet<CourseAlert>(
+      title: 'پیش‌فرض همهٔ درس‌ها',
+      current: s.defaultAlert,
+      values: CourseAlert.values,
+      label: (v) => v.label,
+      hint: (v) => v.hint,
+    );
+    if (picked == null || picked == s.defaultAlert) return;
+    await _save(s.copyWith(defaultAlert: picked));
+    _toast('پیش‌فرض درس‌ها: ${picked.label}');
+  }
+
   /// انتخاب دقیقهٔ آلارم امتحان
   Future<void> _pickExamMinutes(AppSettings s) async {
     final picked = await _pickFromSheet<int>(
@@ -444,6 +458,18 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           const SizedBox(height: 24),
           const _SectionTitle('اعلان هر درس', icon: Icons.tune_rounded),
           _Card(children: [
+            // حالت پیش‌فرض همهٔ درس‌هایی که کاربر جدا تنظیم نکرده
+            _LinkTile(
+              icon: Icons.playlist_add_check_rounded,
+              title: 'پیش‌فرض همهٔ درس‌ها',
+              value: switch (s.defaultAlert) {
+                CourseAlert.alarm => 'آلارم',
+                CourseAlert.notice => 'فقط اعلان',
+                CourseAlert.off => 'خاموش',
+              },
+              onTap: () => _pickDefaultAlert(s),
+            ),
+            const Divider(height: 1, indent: 56),
             // کل این بخش یک کشویی است: بسته = عنوان + خلاصه، باز = فهرست درس‌ها
             _CourseListExpansion(
               group: notifGroup,
@@ -769,12 +795,18 @@ class _CourseListExpansionState extends State<_CourseListExpansion> {
   @override
   Widget build(BuildContext context) {
     final total = group.courses.length;
-    final alarms = group.courses
-        .where((c) => c.alert == CourseAlert.alarm && !c.muted)
-        .length;
-    final notices = group.courses
-        .where((c) => c.alert == CourseAlert.notice && !c.muted)
-        .length;
+    // خلاصه بر اساس حالت مؤثر، نه مقدار خامِ هر درس
+    var alarms = 0, notices = 0;
+    for (final c in group.courses) {
+      switch (NotificationService.effectiveAlert(c)) {
+        case CourseAlert.alarm:
+          alarms++;
+        case CourseAlert.notice:
+          notices++;
+        case CourseAlert.off:
+          break;
+      }
+    }
     final offs = total - alarms - notices;
 
     // خلاصهٔ کوتاه برای حالت بسته
@@ -933,11 +965,13 @@ class _CourseAlarmExpansionState extends State<_CourseAlarmExpansion> {
 
   @override
   Widget build(BuildContext context) {
-    final on = course.alertsOn && !course.muted;
+    // حالت مؤثر: اگر کاربر برای این درس انتخاب نکرده، پیش‌فرض تنظیمات
+    final effective = NotificationService.effectiveAlert(course);
+    final on = effective != CourseAlert.off;
     final offSessions = course.sessions.where((s) => !s.alarmEnabled).length;
     final mins = NotificationService.minutesFor(course);
 
-    final (Color tint, IconData icon) = switch (course.alert) {
+    final (Color tint, IconData icon) = switch (effective) {
       CourseAlert.alarm => (AppColors.saffron, Icons.alarm_on_rounded),
       CourseAlert.notice => (AppColors.olive, Icons.notifications_active_outlined),
       CourseAlert.off => (AppColors.muted, Icons.notifications_off_outlined),
@@ -967,7 +1001,7 @@ class _CourseAlarmExpansionState extends State<_CourseAlarmExpansion> {
           subtitle: Text(
             !on
                 ? 'خاموش — هیچ اعلانی نمی‌آید'
-                : course.alert == CourseAlert.alarm
+                : effective == CourseAlert.alarm
                     ? 'آلارم · ${mins == 0 ? 'سرِ وقت' : '${fa(mins)} دقیقه قبل'}'
                     : 'فقط اعلان · بدون زنگ',
             style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
@@ -1012,12 +1046,14 @@ class _CourseAlarmExpansionState extends State<_CourseAlarmExpansion> {
                       label: Text('خاموش', style: TextStyle(fontSize: 12.5)),
                     ),
                   ],
-                  selected: {course.alert},
+                  selected: {effective},
                   onSelectionChanged: (v) => _setAlert(v.first),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  course.alert.hint,
+                  course.alertExplicit
+                      ? course.alert.hint
+                      : 'پیش‌فرض برنامه: ${effective.hint}',
                   style: const TextStyle(fontSize: 11.5, color: AppColors.muted, height: 1.5),
                 ),
 

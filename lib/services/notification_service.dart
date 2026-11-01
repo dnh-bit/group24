@@ -324,8 +324,18 @@ class NotificationService {
     return v.clamp(0, SettingsService.maxMinutes).toInt();
   }
 
+  /// حالت مؤثر اعلان یک درس.
+  ///
+  /// اگر کاربر برای این درس انتخاب نکرده باشد (`alert` پیش‌فرض است) از
+  /// [AppSettings.defaultAlert] استفاده می‌شود؛ وگرنه انتخاب خودِ درس.
+  static CourseAlert effectiveAlert(Course c) {
+    if (!c.alertsOn || c.muted) return CourseAlert.off;
+    if (!c.alertExplicit) return SettingsService.instance.settings.defaultAlert;
+    return c.alert;
+  }
+
   /// آیا این درس اصلاً اعلان بگیرد؟ (آلارم یا اعلان ساده)
-  static bool courseEnabled(Course c) => c.alertsOn && !c.muted;
+  static bool courseEnabled(Course c) => effectiveAlert(c) != CourseAlert.off;
 
   /// آیا این جلسه اعلان بگیرد؟
   ///
@@ -370,7 +380,7 @@ class NotificationService {
         if (ci == null) continue;
 
         final mins = minutesFor(c);
-        final isAlarm = _alarmWanted(isExam: false, courseAlert: c.alert);
+        final isAlarm = _alarmWanted(isExam: false, courseAlert: effectiveAlert(c));
 
         await _plugin.zonedSchedule(
           _sessionId(ci, ref.index),
@@ -429,7 +439,7 @@ class NotificationService {
                 : '${fa(alarmMins)} دقیقه تا امتحان ${c.shortName}',
             'ساعت ${fmtTime(e.start)}$where · موفق باشی ✦',
             alarmAt,
-            _details(isAlarm: _alarmWanted(isExam: true, courseAlert: c.alert), isExam: true),
+            _details(isAlarm: _alarmWanted(isExam: true, courseAlert: effectiveAlert(c)), isExam: true),
             androidScheduleMode: mode,
             payload: 'exam:${c.id}',
           );

@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/schedule_store.dart';
 import 'screens/home_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/schedule_screen.dart';
 import 'services/notification_service.dart';
 import 'services/settings_service.dart';
@@ -65,6 +66,28 @@ Future<void> flushPendingNotificationRoute() async {
   await _openNotificationCourse(payload);
 }
 
+/// اولین صفحه: اسلاید خوش‌آمد در نصب تازه، وگرنه صفحهٔ اصلی.
+class _Root extends StatefulWidget {
+  const _Root();
+
+  @override
+  State<_Root> createState() => _RootState();
+}
+
+class _RootState extends State<_Root> {
+  late bool _showOnboarding = OnboardingScreen.shouldShow();
+
+  @override
+  Widget build(BuildContext context) {
+    if (_showOnboarding) {
+      return OnboardingScreen(onDone: () {
+        if (mounted) setState(() => _showOnboarding = false);
+      });
+    }
+    return const HomeScreen();
+  }
+}
+
 class Group24App extends StatefulWidget {
   const Group24App({super.key});
 
@@ -99,7 +122,7 @@ class _Group24AppState extends State<Group24App> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const HomeScreen(),
+      home: const _Root(),
       builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
         value: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,

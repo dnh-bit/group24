@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/models.dart';
+
 const bool kEmptyDefault = bool.fromEnvironment('EMPTY_DEFAULT');
 
 /// نوع آلارمی که هنگام رسیدن کلاس/امتحان پخش می‌شود.
@@ -57,6 +59,13 @@ class AppSettings {
   /// آلارم واقعی برای امتحان هم باشد
   final bool examFullAlarm;
 
+  /// کاربر اسلاید خوش‌آمدگویی را دیده است.
+  final bool onboarded;
+
+  /// حالت پیش‌فرض اعلان برای درس‌هایی که کاربر جدا تنظیم نکرده.
+  /// (alarm = اعلان تمام‌صفحه، notice = فقط اعلان)
+  final CourseAlert defaultAlert;
+
   const AppSettings({
     this.classReminders = true,
     this.minutesBefore = 15,
@@ -69,6 +78,8 @@ class AppSettings {
     this.vibrate = true,
     this.examAlarmMinutes = 60,
     this.examFullAlarm = true,
+    this.onboarded = false,
+    this.defaultAlert = CourseAlert.alarm,
   });
 
   AppSettings copyWith({
@@ -83,6 +94,8 @@ class AppSettings {
     bool? vibrate,
     int? examAlarmMinutes,
     bool? examFullAlarm,
+    bool? onboarded,
+    CourseAlert? defaultAlert,
   }) =>
       AppSettings(
         classReminders: classReminders ?? this.classReminders,
@@ -96,6 +109,8 @@ class AppSettings {
         vibrate: vibrate ?? this.vibrate,
         examAlarmMinutes: examAlarmMinutes ?? this.examAlarmMinutes,
         examFullAlarm: examFullAlarm ?? this.examFullAlarm,
+        onboarded: onboarded ?? this.onboarded,
+        defaultAlert: defaultAlert ?? this.defaultAlert,
       );
 }
 
@@ -130,6 +145,11 @@ class SettingsService extends ChangeNotifier {
       vibrate: p.getBool('vibrate') ?? true,
       examAlarmMinutes: (p.getInt('examAlarmMinutes') ?? 60).clamp(0, 180).toInt(),
       examFullAlarm: p.getBool('examFullAlarm') ?? true,
+      onboarded: p.getBool('onboarded') ?? false,
+      defaultAlert: CourseAlert.values[
+          (p.getInt('defaultAlert') ?? CourseAlert.alarm.index)
+              .clamp(0, CourseAlert.values.length - 1)
+              .toInt()],
     );
   }
 
@@ -149,5 +169,7 @@ class SettingsService extends ChangeNotifier {
     await p.setBool('vibrate', s.vibrate);
     await p.setInt('examAlarmMinutes', s.examAlarmMinutes);
     await p.setBool('examFullAlarm', s.examFullAlarm);
+    await p.setBool('onboarded', s.onboarded);
+    await p.setInt('defaultAlert', s.defaultAlert.index);
   }
 }

@@ -311,6 +311,10 @@ class Course {
   /// حالت اعلان این درس: آلارم / فقط اعلان / خاموش.
   final CourseAlert alert;
 
+  /// آیا کاربر خودش حالت را انتخاب کرده؟ اگر نه، پیش‌فرضِ تنظیمات اعمال
+  /// می‌شود تا تغییر پیش‌فرض روی درس‌هایی که دست نخورده‌اند اثر بگذارد.
+  final bool alertExplicit;
+
   /// چند دقیقه قبل از کلاس آلارم بزند؛ null = از تنظیم کلی استفاده کن.
   final int? alarmMinutes;
 
@@ -328,6 +332,7 @@ class Course {
     this.note = '',
     this.muted = false,
     this.alert = CourseAlert.alarm,
+    this.alertExplicit = false,
     this.alarmMinutes,
   });
 
@@ -350,6 +355,7 @@ class Course {
     String? note,
     bool? muted,
     CourseAlert? alert,
+    bool? alertExplicit,
     int? alarmMinutes,
     bool clearAlarmMinutes = false,
   }) =>
@@ -367,6 +373,8 @@ class Course {
         note: note ?? this.note,
         muted: muted ?? this.muted,
         alert: alert ?? this.alert,
+        // هر تغییر صریحِ alert، آن را «انتخاب کاربر» می‌کند
+        alertExplicit: alertExplicit ?? (alert != null ? true : this.alertExplicit),
         alarmMinutes: clearAlarmMinutes ? null : (alarmMinutes ?? this.alarmMinutes),
       );
 
@@ -387,6 +395,7 @@ class Course {
         'note': note,
         'muted': muted,
         'alert': alert.name,
+        if (alertExplicit) 'alertExplicit': true,
         if (alarmMinutes != null) 'alarmMinutes': alarmMinutes,
       };
 
@@ -418,6 +427,11 @@ class Course {
       }(),
       muted: _alertOf(j) == CourseAlert.off,
       alert: _alertOf(j),
+      alertExplicit: j.containsKey('alert') ||
+          j.containsKey('notify') ||
+          j.containsKey('alertMode') ||
+          j.containsKey('هشدار') ||
+          j.containsKey('اعلان'),
     );
   }
 }
