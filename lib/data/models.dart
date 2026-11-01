@@ -40,6 +40,17 @@ int _int(dynamic v, int def) {
   return int.tryParse(s) ?? double.tryParse(s)?.toInt() ?? def;
 }
 
+/// آیا کاربر (یا فایل ورودی) حالت اعلان این درس را صریحاً تعیین کرده؟
+///
+/// `alertExplicit` خودش معیار است؛ اگر نبود، وجود هر کلید حالت‌دهنده
+/// (alert/notify/…) یعنی انتخاب صریح. کلید `muted` به‌تنهایی معیار نیست چون
+/// فایل‌های قدیمی همیشه آن را دارند.
+bool _alertExplicitOf(Map j) {
+  final e = _pick(j, ['alertExplicit', 'alert_explicit']);
+  if (e != null) return _bool(e, false);
+  return _pick(j, ['alert', 'notify', 'alertMode', 'هشدار', 'اعلان']) != null;
+}
+
 /// حالت اعلان درس را از فایل می‌خواند.
 /// کلیدهای پذیرفته‌شده: alert / notify / هشدار، و مقدارها:
 /// alarm/آلارم/زنگ، notice/اعلان/notification/پیام، off/خاموش/silent/none.
@@ -394,7 +405,10 @@ class Course {
         'sessions': [for (final s in sessions) s.toJson()],
         'note': note,
         'muted': muted,
-        'alert': alert.name,
+        // «alert» فقط وقتی نوشته می‌شود که کاربر خودش انتخاب کرده باشد.
+        // اگر همیشه نوشته شود، بازخوانی آن را «انتخاب کاربر» می‌فهمد و
+        // پیش‌فرضِ تنظیمات دیگر روی درس اثر نمی‌گذارد.
+        if (alertExplicit) 'alert': alert.name,
         if (alertExplicit) 'alertExplicit': true,
         if (alarmMinutes != null) 'alarmMinutes': alarmMinutes,
       };
@@ -427,11 +441,7 @@ class Course {
       }(),
       muted: _alertOf(j) == CourseAlert.off,
       alert: _alertOf(j),
-      alertExplicit: j.containsKey('alert') ||
-          j.containsKey('notify') ||
-          j.containsKey('alertMode') ||
-          j.containsKey('هشدار') ||
-          j.containsKey('اعلان'),
+      alertExplicit: _alertExplicitOf(j),
     );
   }
 }

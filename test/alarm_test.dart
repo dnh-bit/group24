@@ -139,6 +139,32 @@ void main() {
       expect(c.copyWith(alert: CourseAlert.notice).copyWith(units: 3).alertExplicit, isTrue);
     });
 
+    test('درس دست‌نخورده بعد از ذخیره/بازخوانی هم دست‌نخورده می‌ماند', () {
+      // باگ واقعی: toJson همیشه alert را می‌نوشت، پس هر درس بعد از یک بار
+      // ذخیره «انتخاب‌شده» می‌شد و پیش‌فرض تنظیمات دیگر اثر نداشت.
+      final auto = Course(id: 1, name: 'x', colorValue: kCoursePalette[0]);
+      final j = auto.toJson();
+      expect(j.containsKey('alert'), isFalse,
+          reason: 'برای درس تنظیم‌نشده نباید alert نوشته شود');
+      final back = Course.fromJson(j);
+      expect(back.alertExplicit, isFalse);
+      // و پیش‌فرض تنظیمات روی آن اثر می‌گذارد
+      expect(j.containsKey('alertExplicit'), isFalse);
+    });
+
+    test('درس دستی بعد از ذخیره/بازخوانی «انتخاب‌شده» می‌ماند', () {
+      final manual = Course(
+        id: 2,
+        name: 'y',
+        colorValue: kCoursePalette[0],
+        alert: CourseAlert.notice,
+        alertExplicit: true,
+      );
+      final back = Course.fromJson(manual.toJson());
+      expect(back.alertExplicit, isTrue);
+      expect(back.alert, CourseAlert.notice);
+    });
+
     test('alertExplicit در JSON ذخیره و بازگردانی می‌شود', () {
       final explicit = Course(id: 1, name: 'x', colorValue: kCoursePalette[0], alert: CourseAlert.notice);
       expect(Course.fromJson(explicit.toJson()).alertExplicit, isTrue);

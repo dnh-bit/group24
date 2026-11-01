@@ -8,7 +8,6 @@ import '../services/battery_service.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../theme.dart';
-import '../utils.dart';
 
 /// اسلاید خوش‌آمدگویی — فقط بار اول بعد از نصب باز می‌شود.
 ///
@@ -42,6 +41,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _fullScreen = _svc.settings.fullScreenAlarm;
   bool _busy = false;
 
+  /// اگر کاربر در این اسلاید اجازه گرفت، دیگر صفحهٔ اصلی دوباره نمی‌پرسد.
+  bool _permissionAsked = false;
+
   bool get _isAndroid => !kIsWeb && Platform.isAndroid;
 
   @override
@@ -67,6 +69,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       classReminders: _classReminders,
       examReminders: _examReminders,
       fullScreenAlarm: _fullScreen,
+      // اگر همین‌جا اجازه گرفتیم، HomeScreen دوباره درخواست نکند
+      askedPermission: _permissionAsked ? true : null,
     ));
     await _notif.reschedule();
     if (!mounted) return;
@@ -97,12 +101,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                   const Spacer(),
-                  if (_page < _total - 1)
-                    TextButton(
-                      onPressed: _finish,
-                      child: const Text('رد کردن',
-                          style: TextStyle(color: AppColors.muted, fontSize: 13)),
+                  TextButton(
+                    onPressed: _busy ? null : _finish,
+                    child: Text(
+                      _page == _total - 1 ? 'تمام' : 'رد کردن',
+                      style: const TextStyle(color: AppColors.muted, fontSize: 13),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -128,6 +133,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     onAllow: () async {
                       await _notif.requestPermission();
                       if (_isAndroid) await _notif.requestExactAlarms();
+                      _permissionAsked = true;
                       if (mounted) {
                         setState(() {});
                         await _pages.nextPage(
@@ -369,8 +375,10 @@ class _BatteryPageState extends State<_BatteryPage> with WidgetsBindingObserver 
     if (state == AppLifecycleState.resumed) _check();
   }
 
+  bool get _isAndroid => !kIsWeb && Platform.isAndroid;
+
   Future<void> _check() async {
-    if (kIsWeb || !Platform.isAndroid) return;
+    if (!_isAndroid) return;
     final ok = await BatteryService.instance.isIgnoringBatteryOptimizations();
     final info = await BatteryService.instance.deviceInfo();
     if (!mounted) return;
@@ -406,13 +414,13 @@ class _BatteryPageState extends State<_BatteryPage> with WidgetsBindingObserver 
             style: const TextStyle(fontSize: 13, height: 1.9, color: AppColors.muted),
           ),
           const SizedBox(height: 22),
-          if (kIsWeb || Platform.isAndroid)
+          if (_isAndroid)
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () async {
                   final opened = await BatteryService.instance.openBatterySettings();
-                  if (!opened && context.mounted) {
+                  if (!opened && mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('این صفحه روی این گوشی پیدا نشد؛ از تنظیمات ← سیستم امتحان کن.'),

@@ -132,6 +132,13 @@ class SettingsService extends ChangeNotifier {
     final p = await SharedPreferences.getInstance();
     _prefs = p;
     final m = p.getInt('minutesBefore') ?? 15;
+    // کاربری که از نسخه‌های قبلی آپدیت می‌کند نباید اسلاید خوش‌آمد ببیند:
+    // اگر قبلاً اجازهٔ اعلان گرفته یا تنظیمی را عوض کرده، نصب قدیمی است.
+    final storedOnboarded = p.getBool('onboarded');
+    final legacyInstall = (p.getBool('askedPermission') ?? false) ||
+        p.containsKey('minutesBefore') ||
+        p.containsKey('classReminders') ||
+        p.containsKey('examReminders');
     final snd = p.getInt('alarmSound') ?? AlarmSound.appAlarm.index;
     _settings = AppSettings(
       classReminders: p.getBool('classReminders') ?? true,
@@ -145,7 +152,7 @@ class SettingsService extends ChangeNotifier {
       vibrate: p.getBool('vibrate') ?? true,
       examAlarmMinutes: (p.getInt('examAlarmMinutes') ?? 60).clamp(0, 180).toInt(),
       examFullAlarm: p.getBool('examFullAlarm') ?? true,
-      onboarded: p.getBool('onboarded') ?? false,
+      onboarded: storedOnboarded ?? legacyInstall,
       defaultAlert: CourseAlert.values[
           (p.getInt('defaultAlert') ?? CourseAlert.alarm.index)
               .clamp(0, CourseAlert.values.length - 1)
