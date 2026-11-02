@@ -20,7 +20,6 @@ class SoundService {
   bool get _isAndroid => !kIsWeb && Platform.isAndroid;
 
   String? _cachedApp;
-  String? _cachedSystem;
 
   /// زنگ اختصاصی برنامه (res/raw/alarm.ogg)
   Future<String?> appAlarmUri() async {
@@ -28,14 +27,6 @@ class SoundService {
     if (_cachedApp != null) return _cachedApp;
     _cachedApp = await _invokeString('appAlarmSoundUri');
     return _cachedApp;
-  }
-
-  /// صدای اعلان پیش‌فرض گوشی (با مسیرهای جانشین)
-  Future<String?> systemSoundUri() async {
-    if (!_isAndroid) return null;
-    if (_cachedSystem != null) return _cachedSystem;
-    _cachedSystem = await _invokeString('systemSoundUri');
-    return _cachedSystem;
   }
 
   /// موسیقی انتخاب‌شدهٔ کاربر — اگر فایل پاک شده باشد null برمی‌گردد.
@@ -65,8 +56,6 @@ class SoundService {
     switch (sound) {
       case AlarmSound.appAlarm:
         return appAlarmUri();
-      case AlarmSound.systemAlarm:
-        return systemSoundUri();
       case AlarmSound.custom:
         final c = await customSoundUri();
         return c ?? await appAlarmUri();
@@ -134,7 +123,6 @@ class SoundService {
   /// پاک کردن کش‌ها تا URIها و کانال‌ها با صدای تازه ساخته شوند.
   Future<void> refresh() async {
     _cachedApp = null;
-    _cachedSystem = null;
   }
 
   Future<String?> _invokeString(String method) async {

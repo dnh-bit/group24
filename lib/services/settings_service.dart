@@ -10,9 +10,6 @@ enum AlarmSound {
   /// صدای همراه خود اپ (زنگ هشدار)
   appAlarm,
 
-  /// زنگ اعلان پیش‌فرض گوشی
-  systemAlarm,
-
   /// فقط لرزش، بدون صدا
   vibrateOnly,
 
@@ -26,7 +23,6 @@ enum AlarmSound {
 extension AlarmSoundLabel on AlarmSound {
   String get label => switch (this) {
         AlarmSound.appAlarm => 'زنگ آلارم برنامه',
-        AlarmSound.systemAlarm => 'زنگ اعلان گوشی',
         AlarmSound.vibrateOnly => 'فقط لرزش',
         AlarmSound.silent => 'بی‌صدا',
         AlarmSound.custom => 'موسیقی خودم',
@@ -34,7 +30,6 @@ extension AlarmSoundLabel on AlarmSound {
 
   String get hint => switch (this) {
         AlarmSound.appAlarm => 'مثل ساعت‌زنگ، تا خاموشش نکنی صدا می‌ده',
-        AlarmSound.systemAlarm => 'صدای اعلان پیش‌فرض اندروید',
         AlarmSound.vibrateOnly => 'گوشی می‌لرزد ولی صدا نمی‌ده',
         AlarmSound.silent => 'فقط یک اعلان بی‌صدا در نوار وضعیت',
         AlarmSound.custom => 'یک فایل صوتی از گوشی خودت انتخاب کن',
@@ -156,7 +151,7 @@ class SettingsService extends ChangeNotifier {
         p.containsKey('minutesBefore') ||
         p.containsKey('classReminders') ||
         p.containsKey('examReminders');
-    final snd = p.getInt('alarmSound') ?? AlarmSound.appAlarm.index;
+    final sndRaw = p.getInt('alarmSound');
     _settings = AppSettings(
       classReminders: p.getBool('classReminders') ?? true,
       minutesBefore: m.clamp(minMinutes, maxMinutes).toInt(),
@@ -165,7 +160,7 @@ class SettingsService extends ChangeNotifier {
       notifGroupId: p.getString('notifGroupId') ?? '',
       cancelOneHourClasses: p.getBool('cancelOneHourClasses') ?? !kEmptyDefault,
       fullScreenAlarm: p.getBool('fullScreenAlarm') ?? true,
-      alarmSound: AlarmSound.values[snd.clamp(0, AlarmSound.values.length - 1)],
+      alarmSound: _migrateSoundIndex(sndRaw),
       vibrate: p.getBool('vibrate') ?? true,
       examAlarmMinutes: (p.getInt('examAlarmMinutes') ?? 60).clamp(0, 180).toInt(),
       examFullAlarm: p.getBool('examFullAlarm') ?? true,
@@ -177,6 +172,25 @@ class SettingsService extends ChangeNotifier {
               .clamp(0, CourseAlert.values.length - 1)
               .toInt()],
     );
+  }
+
+  /// ایندکس ذخیره‌شدهٔ صدا را به مقدار سالم تبدیل می‌کند.
+  ///
+  /// گزینهٔ «زنگ اعلان گوشی» (ایندکس ۱ در نسخه‌های قبلی) حذف شد چون روی
+  /// خیلی گوشی‌ها بی‌صدا بود. اگر فقط ایندکس را می‌خواندیم، کاربری که آن را
+  /// انتخاب کرده بود بی‌دلیل «فقط لرزش» می‌گرفت. حالا به زنگ برنامه برمی‌گردد.
+  static AlarmSound _migrateSoundIndex(int? raw) {
+    if (raw == null) return AlarmSound.appAlarm;
+    // نقشهٔ نسخهٔ قدیم: 0=appAlarm, 1=systemAlarm(حذف‌شده), 2=vibrateOnly,
+    // 3=silent, 4=custom
+    const legacy = <int, AlarmSound>{
+      0: AlarmSound.appAlarm,
+      1: AlarmSound.appAlarm, // حذف‌شده → زنگ برنامه
+      2: AlarmSound.vibrateOnly,
+      3: AlarmSound.silent,
+      4: AlarmSound.custom,
+    };
+    return legacy[raw] ?? AlarmSound.appAlarm;
   }
 
   Future<void> update(AppSettings s) async {

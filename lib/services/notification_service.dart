@@ -56,7 +56,6 @@ class NotificationService {
   static String _channelId(AlarmSound sound, bool vibrate, {String? uriTag}) {
     final s = switch (sound) {
       AlarmSound.appAlarm => 'app',
-      AlarmSound.systemAlarm => 'sys',
       AlarmSound.custom => 'cus',
       AlarmSound.vibrateOnly => 'vib',
       AlarmSound.silent => 'sil',
@@ -126,23 +125,23 @@ class NotificationService {
 
   /// ساخت کانال‌ها با URI واقعی صدا.
   ///
-  /// دو باگ قبلی که این‌جا رفع شده:
-  ///  ۱. برای «زنگ گوشی» صدا خالی گذاشته می‌شد → پلاگین به getDefaultUri
-  ///     تکیه می‌کرد که روی بعضی گوشی‌ها null است و کانال بی‌صدا می‌شد.
-  ///  ۲. با عوض شدن موسیقی کاربر، صدای کانال عوض نمی‌شد؛ حالا شناسهٔ کانال
-  ///     با URI عوض می‌شود تا کانال تازه ساخته شود.
+  /// گزینهٔ «زنگ اعلان گوشی» حذف شد: پلاگین برای آن به
+  /// `RingtoneManager.getDefaultUri` تکیه می‌کرد که روی بخش بزرگی از گوشی‌ها
+  /// null برمی‌گرداند و کانال کامل بی‌صدا ساخته می‌شد. حالا فقط صدای تضمینی
+  /// داریم: زنگ خود برنامه و موسیقی انتخاب‌شدهٔ کاربر.
+  ///
+  /// شناسهٔ کانال شامل هش URI است: اندروید صدای کانال را بعد از ساخت عوض
+  /// نمی‌کند، پس با عوض شدن موسیقی، کانال تازه با صدای جدید ساخته می‌شود.
   Future<void> _createChannels() async {
     final a = _android;
     if (a == null) return;
     final pattern = Int64List.fromList(<int>[0, 800, 600, 800]);
     final appUri = await SoundService.instance.appAlarmUri();
-    final sysUri = await SoundService.instance.systemSoundUri();
     final cusUri = await SoundService.instance.customSoundUri();
 
     Future<void> make(AlarmSound sound, bool vibrate) async {
       final uri = switch (sound) {
         AlarmSound.appAlarm => appUri,
-        AlarmSound.systemAlarm => sysUri,
         AlarmSound.custom => cusUri ?? appUri,
         AlarmSound.vibrateOnly => null,
         AlarmSound.silent => null,
@@ -166,7 +165,6 @@ class NotificationService {
 
     for (final sound in [
       AlarmSound.appAlarm,
-      AlarmSound.systemAlarm,
       AlarmSound.custom,
       AlarmSound.vibrateOnly,
     ]) {

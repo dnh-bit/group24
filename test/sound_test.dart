@@ -28,9 +28,55 @@ void main() {
           reason: 'توضیح «فقط لرزش» باید به لرزش اشاره کند: $hint');
     });
 
-    test('«زنگ گوشی» توضیح می‌دهد که صدای اعلان پیش‌فرض است', () {
-      expect(AlarmSound.systemAlarm.hint.trim(), isNotEmpty);
-      expect(AlarmSound.systemAlarm.label, contains('گوشی'));
+    test('«زنگ اعلان گوشی» حذف شده است', () {
+      // این گزینه روی بخش بزرگی از گوشی‌ها بی‌صدا بود (getDefaultUri → null)
+      for (final v in AlarmSound.values) {
+        expect(v.name, isNot('systemAlarm'),
+            reason: 'گزینهٔ بی‌صدا نباید برگردد');
+      }
+      expect(AlarmSound.values.length, 4);
+    });
+
+    test('فقط گزینه‌های تضمینی صدا باقی مانده‌اند', () {
+      expect(AlarmSound.values, contains(AlarmSound.appAlarm));
+      expect(AlarmSound.values, contains(AlarmSound.custom));
+      expect(AlarmSound.values, contains(AlarmSound.vibrateOnly));
+      expect(AlarmSound.values, contains(AlarmSound.silent));
+    });
+  });
+
+  group('مهاجرت ایندکس ذخیره‌شده', () {
+    /// نقشهٔ نسخهٔ قدیم: 0=appAlarm, 1=systemAlarm(حذف شد), 2=vibrateOnly,
+    /// 3=silent, 4=custom. اگر این مهاجرت نباشد، کاربری که «زنگ گوشی» را
+    /// انتخاب کرده بود بی‌دلیل «فقط لرزش» می‌گیرد.
+    AlarmSound migrate(int? raw) {
+      if (raw == null) return AlarmSound.appAlarm;
+      const legacy = <int, AlarmSound>{
+        0: AlarmSound.appAlarm,
+        1: AlarmSound.appAlarm,
+        2: AlarmSound.vibrateOnly,
+        3: AlarmSound.silent,
+        4: AlarmSound.custom,
+      };
+      return legacy[raw] ?? AlarmSound.appAlarm;
+    }
+
+    test('ایندکس ۱ (زنگ گوشیِ حذف‌شده) به زنگ برنامه می‌رود، نه فقط لرزش', () {
+      expect(migrate(1), AlarmSound.appAlarm);
+      expect(migrate(1), isNot(AlarmSound.vibrateOnly));
+    });
+
+    test('بقیهٔ ایندکس‌ها دست‌نخورده می‌مانند', () {
+      expect(migrate(0), AlarmSound.appAlarm);
+      expect(migrate(2), AlarmSound.vibrateOnly);
+      expect(migrate(3), AlarmSound.silent);
+      expect(migrate(4), AlarmSound.custom);
+    });
+
+    test('ایندکس نامعتبر و خالی به زنگ برنامه می‌رود', () {
+      expect(migrate(null), AlarmSound.appAlarm);
+      expect(migrate(9), AlarmSound.appAlarm);
+      expect(migrate(-1), AlarmSound.appAlarm);
     });
   });
 
@@ -67,8 +113,8 @@ void main() {
         customSoundName: 'file.mp3',
         alarmSound: AlarmSound.custom,
       );
-      final switched = withMusic.copyWith(alarmSound: AlarmSound.systemAlarm);
-      expect(switched.alarmSound, AlarmSound.systemAlarm);
+      final switched = withMusic.copyWith(alarmSound: AlarmSound.vibrateOnly);
+      expect(switched.alarmSound, AlarmSound.vibrateOnly);
       // موسیقی برای انتخاب دوباره باقی می‌ماند
       expect(switched.customSoundUri, 'content://x/1');
       expect(switched.customSoundName, 'file.mp3');
