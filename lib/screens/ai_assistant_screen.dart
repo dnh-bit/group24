@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../utils.dart';
 import 'editor/widgets.dart' show toast;
+import 'paste_import_sheet.dart';
 
 /// دستیار هوشمند — اپ خودش به هیچ هوش مصنوعی وصل نمی‌شود؛
 /// فقط یک پرامپت آماده می‌دهد که کاربر همراه PDF یا عکسِ برنامهٔ دانشگاهی‌اش
@@ -41,6 +42,16 @@ x|سال|ماه|روز|ساعت‌شروع امتحان|ساعت‌پایان ا
 - هیچ خط اضافه، شماره‌گذاری، توضیح یا عذرخواهی ننویس. خروجی فقط خطوط PLAN و c و s و x است.''';
   }
 
+  /// باز کردن شیت پیست و ایمپورت
+  Future<void> _pasteImport() async {
+    final done = await showPasteImportSheet(context);
+    if (!done || !mounted) return;
+    // بستن همین صفحه (دستیار) تا کاربر برنامهٔ تازه را ببیند. popUntil روی
+    // ریشه کار می‌کند و اگر صفحهٔ اصلی زیرش باشد مشکلی پیش نمی‌آید.
+    final nav = Navigator.of(context);
+    if (nav.canPop()) nav.pop();
+  }
+
   Future<void> _copyPrompt() async {
     setState(() {
       _prompt = _buildPrompt();
@@ -71,8 +82,8 @@ x|سال|ماه|روز|ساعت‌شروع امتحان|ساعت‌پایان ا
           ),
           const _StepCard(
             n: 3,
-            title: 'خروجی چت‌بات رو وارد این برنامه کن',
-            text: 'چت‌بات چند خط کوتاه بهت می‌ده (با PLAN شروع می‌شه). همون متن رو کپی کن و برگرد به «گروه‌های درسی ← گروه جدید ← از متن» — یا ذخیره‌اش کن و «از فایل» بزن. برنامه به‌عنوان گروهِ جدید اضافه می‌شه و برنامه‌های قبلی دست‌نخورده می‌مونن.',
+            title: 'خروجی چت‌بات رو همین‌جا پیست کن',
+            text: 'چت‌بات چند خط کوتاه بهت می‌ده (با PLAN شروع می‌شه). همون متن رو کپی کن و دکمهٔ «پیست متن خروجی» پایین صفحه رو بزن — برنامه به‌عنوان گروهِ جدید اضافه می‌شه و برنامه‌های قبلی دست‌نخورده می‌مونن.',
           ),
           const SizedBox(height: 8),
           FilledButton.icon(
@@ -84,6 +95,18 @@ x|سال|ماه|روز|ساعت‌شروع امتحان|ساعت‌پایان ا
             onPressed: _copyPrompt,
             icon: const Icon(Icons.content_copy_rounded),
             label: const Text('کپی پرامپت آماده', style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.saffron,
+              side: const BorderSide(color: AppColors.saffron, width: 1.6),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            onPressed: _pasteImport,
+            icon: const Icon(Icons.content_paste_go_rounded),
+            label: const Text('پیست متن خروجی و ساخت گروه',
+                style: TextStyle(fontWeight: FontWeight.w800)),
           ),
           if (_copied) ...[
             const SizedBox(height: 16),
