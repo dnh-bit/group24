@@ -53,8 +53,10 @@ class _SoundSheetState extends State<_SoundSheet> {
     }
     setState(() => _playingUri = uri);
     await SoundService.instance.preview(uri);
-    // نمونه خودش تمام می‌شود؛ فقط نشانگر را برمی‌داریم
-    await Future<void>.delayed(const Duration(seconds: 2));
+    // Ringtone به‌طور پیش‌فرض لوپ می‌کند؛ بعد از ۴ ثانیه خودمان متوقفش می‌کنیم
+    // وگرنه صدا تا بستن شیت ادامه می‌داد.
+    await Future<void>.delayed(const Duration(seconds: 4));
+    await SoundService.instance.stopPreview();
     if (mounted && _playingUri == uri) setState(() => _playingUri = null);
   }
 

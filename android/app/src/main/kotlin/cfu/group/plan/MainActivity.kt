@@ -279,6 +279,10 @@ class MainActivity : FlutterActivity() {
         }
         return try {
             val r = RingtoneManager.getRingtone(this, uri) ?: return false
+            // پیش‌فرض Ringtone لوپ می‌کند و تا ابد پخش می‌شد
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                r.isLooping = false
+            }
             r.play()
             previewRingtone = r
             true
