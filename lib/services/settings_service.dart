@@ -18,6 +18,9 @@ enum AlarmSound {
 
   /// کاملاً بی‌صدا (فقط اعلان در نوار)
   silent,
+
+  /// فایل صوتی انتخاب‌شده از گوشی کاربر
+  custom,
 }
 
 extension AlarmSoundLabel on AlarmSound {
@@ -26,6 +29,7 @@ extension AlarmSoundLabel on AlarmSound {
         AlarmSound.systemAlarm => 'زنگ اعلان گوشی',
         AlarmSound.vibrateOnly => 'فقط لرزش',
         AlarmSound.silent => 'بی‌صدا',
+        AlarmSound.custom => 'موسیقی خودم',
       };
 
   String get hint => switch (this) {
@@ -33,6 +37,7 @@ extension AlarmSoundLabel on AlarmSound {
         AlarmSound.systemAlarm => 'صدای اعلان پیش‌فرض اندروید',
         AlarmSound.vibrateOnly => 'گوشی می‌لرزد ولی صدا نمی‌ده',
         AlarmSound.silent => 'فقط یک اعلان بی‌صدا در نوار وضعیت',
+        AlarmSound.custom => 'یک فایل صوتی از گوشی خودت انتخاب کن',
       };
 }
 
@@ -66,6 +71,12 @@ class AppSettings {
   /// (alarm = اعلان تمام‌صفحه، notice = فقط اعلان)
   final CourseAlert defaultAlert;
 
+  /// URI موسیقی انتخاب‌شدهٔ کاربر (وقتی alarmSound == custom)
+  final String customSoundUri;
+
+  /// نام نمایشی همان فایل (برای نشان دادن در تنظیمات)
+  final String customSoundName;
+
   const AppSettings({
     this.classReminders = true,
     this.minutesBefore = 15,
@@ -80,6 +91,8 @@ class AppSettings {
     this.examFullAlarm = true,
     this.onboarded = false,
     this.defaultAlert = CourseAlert.alarm,
+    this.customSoundUri = '',
+    this.customSoundName = '',
   });
 
   AppSettings copyWith({
@@ -96,6 +109,8 @@ class AppSettings {
     bool? examFullAlarm,
     bool? onboarded,
     CourseAlert? defaultAlert,
+    String? customSoundUri,
+    String? customSoundName,
   }) =>
       AppSettings(
         classReminders: classReminders ?? this.classReminders,
@@ -111,6 +126,8 @@ class AppSettings {
         examFullAlarm: examFullAlarm ?? this.examFullAlarm,
         onboarded: onboarded ?? this.onboarded,
         defaultAlert: defaultAlert ?? this.defaultAlert,
+        customSoundUri: customSoundUri ?? this.customSoundUri,
+        customSoundName: customSoundName ?? this.customSoundName,
       );
 }
 
@@ -153,6 +170,8 @@ class SettingsService extends ChangeNotifier {
       examAlarmMinutes: (p.getInt('examAlarmMinutes') ?? 60).clamp(0, 180).toInt(),
       examFullAlarm: p.getBool('examFullAlarm') ?? true,
       onboarded: storedOnboarded ?? legacyInstall,
+      customSoundUri: p.getString('customSoundUri') ?? '',
+      customSoundName: p.getString('customSoundName') ?? '',
       defaultAlert: CourseAlert.values[
           (p.getInt('defaultAlert') ?? CourseAlert.alarm.index)
               .clamp(0, CourseAlert.values.length - 1)
@@ -177,6 +196,8 @@ class SettingsService extends ChangeNotifier {
     await p.setInt('examAlarmMinutes', s.examAlarmMinutes);
     await p.setBool('examFullAlarm', s.examFullAlarm);
     await p.setBool('onboarded', s.onboarded);
+    await p.setString('customSoundUri', s.customSoundUri);
+    await p.setString('customSoundName', s.customSoundName);
     await p.setInt('defaultAlert', s.defaultAlert.index);
   }
 }

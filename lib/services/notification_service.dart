@@ -9,6 +9,7 @@ import '../data/models.dart';
 import '../data/schedule_store.dart';
 import '../utils.dart';
 import 'settings_service.dart';
+import 'sound_service.dart';
 
 /// همهٔ یادآوری‌ها لوکال هستن و بدون اینترنت کار می‌کنن.
 ///
@@ -41,15 +42,38 @@ class NotificationService {
   // ── شناسهٔ کانال‌ها ──
   // اندروید اجازهٔ تغییر صدا/لرزش کانالِ ساخته‌شده را نمی‌دهد، پس برای هر
   // ترکیب «آلارم / بی‌صدا / با لرزش» یک کانال جدا داریم.
-  // اندروید صدا و لرزش کانال را بعد از ساخت عوض نمی‌کند، پس هر ترکیب
-  // «صدا × لرزش» کانال خودش را دارد و همه از اول ساخته می‌شوند.
-  static const _chAlarm = 'class_alarm_v2'; // زنگ برنامه، بدون لرزش
-  static const _chAlarmVibrate = 'class_alarm_vibrate_v2'; // زنگ برنامه + لرزش
-  static const _chDefaultSound = 'class_default_sound_v2'; // زنگ گوشی، بدون لرزش
-  static const _chDefaultVibrate = 'class_default_vibrate_v2'; // زنگ گوشی + لرزش
-  static const _chVibrateOnly = 'class_vibrate_only_v2'; // فقط لرزش
-  static const _chQuiet = 'class_quiet_v2';
-  static const _chExamQuiet = 'exam_quiet_v2';
+  // اندروید صدا و لرزش کانال را بعد از ساخت عوض نمی‌کند، پس شناسهٔ کانال
+  // شامل نوع صدا و لرزش است. اگر کاربر موسیقی خودش را عوض کند، شناسه با
+  // هش URI عوض می‌شود تا کانال تازه با صدای جدید ساخته شود.
+  static const _chQuiet = 'class_quiet_v3';
+  static const _chExamQuiet = 'exam_quiet_v3';
+
+  /// شناسهٔ کانال برای یک ترکیب صدا + لرزش.
+  ///
+  /// [uriTag] هش کوتاه URI صدا است: اندروید صدای کانال را بعد از ساخت عوض
+  /// نمی‌کند، پس اگر کاربر موسیقی خودش را با فایل دیگری عوض کند، شناسه هم
+  /// باید عوض شود تا کانال تازه با صدای جدید ساخته شود.
+  static String _channelId(AlarmSound sound, bool vibrate, {String? uriTag}) {
+    final s = switch (sound) {
+      AlarmSound.appAlarm => 'app',
+      AlarmSound.systemAlarm => 'sys',
+      AlarmSound.custom => 'cus',
+      AlarmSound.vibrateOnly => 'vib',
+      AlarmSound.silent => 'sil',
+    };
+    final tag = (uriTag == null || uriTag.isEmpty) ? '' : '_$uriTag';
+    return 'alarm_${s}${tag}_${vibrate ? 'v' : 'n'}_v3';
+  }
+
+  /// هش کوتاه یک URI برای استفاده در شناسهٔ کانال.
+  static String _tagOf(String? uri) {
+    if (uri == null || uri.isEmpty) return '';
+    var h = 0;
+    for (final c in uri.codeUnits) {
+      h = (h * 31 + c) & 0x7fffffff;
+    }
+    return h.toRadixString(36);
+  }
 
   static const _actions = <AndroidNotificationAction>[
     AndroidNotificationAction('snooze', '۵ دقیقهٔ دیگر', showsUserInterface: false),
@@ -100,62 +124,56 @@ class NotificationService {
     }
   }
 
-  /// کانال‌ها یک بار ساخته می‌شن؛ اندروید ۸+ صدا و لرزش را از کانال می‌گیرد.
+  /// ساخت کانال‌ها با URI واقعی صدا.
+  ///
+  /// دو باگ قبلی که این‌جا رفع شده:
+  ///  ۱. برای «زنگ گوشی» صدا خالی گذاشته می‌شد → پلاگین به getDefaultUri
+  ///     تکیه می‌کرد که روی بعضی گوشی‌ها null است و کانال بی‌صدا می‌شد.
+  ///  ۲. با عوض شدن موسیقی کاربر، صدای کانال عوض نمی‌شد؛ حالا شناسهٔ کانال
+  ///     با URI عوض می‌شود تا کانال تازه ساخته شود.
   Future<void> _createChannels() async {
     final a = _android;
     if (a == null) return;
-    const alarmSound = RawResourceAndroidNotificationSound('alarm');
     final pattern = Int64List.fromList(<int>[0, 800, 600, 800]);
-    await a.createNotificationChannel(AndroidNotificationChannel(
-      _chAlarm,
-      'آلارم کلاس‌ها',
-      description: 'آلارم تمام‌صفحهٔ قبل از شروع کلاس، با صدا',
-      importance: Importance.max,
-      playSound: true,
-      sound: alarmSound,
-      enableVibration: false,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-    ));
-    await a.createNotificationChannel(AndroidNotificationChannel(
-      _chAlarmVibrate,
-      'آلارم کلاس‌ها (با لرزش)',
-      description: 'آلارم تمام‌صفحهٔ قبل از شروع کلاس، با صدا و لرزش',
-      importance: Importance.max,
-      playSound: true,
-      sound: alarmSound,
-      enableVibration: true,
-      vibrationPattern: pattern,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-    ));
-    await a.createNotificationChannel(const AndroidNotificationChannel(
-      _chDefaultSound,
-      'آلارم با زنگ گوشی',
-      description: 'آلارم کلاس با صدای اعلان پیش‌فرض گوشی',
-      importance: Importance.max,
-      playSound: true,
-      enableVibration: false,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-    ));
-    await a.createNotificationChannel(AndroidNotificationChannel(
-      _chDefaultVibrate,
-      'آلارم با زنگ گوشی (و لرزش)',
-      description: 'آلارم کلاس با صدای اعلان پیش‌فرض گوشی و لرزش',
-      importance: Importance.max,
-      playSound: true,
-      enableVibration: true,
-      vibrationPattern: pattern,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-    ));
-    await a.createNotificationChannel(AndroidNotificationChannel(
-      _chVibrateOnly,
-      'آلارم فقط لرزش',
-      description: 'آلارم کلاس بدون صدا، فقط لرزش',
-      importance: Importance.max,
-      playSound: false,
-      enableVibration: true,
-      vibrationPattern: pattern,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-    ));
+    final appUri = await SoundService.instance.appAlarmUri();
+    final sysUri = await SoundService.instance.systemSoundUri();
+    final cusUri = await SoundService.instance.customSoundUri();
+
+    Future<void> make(AlarmSound sound, bool vibrate) async {
+      final uri = switch (sound) {
+        AlarmSound.appAlarm => appUri,
+        AlarmSound.systemAlarm => sysUri,
+        AlarmSound.custom => cusUri ?? appUri,
+        AlarmSound.vibrateOnly => null,
+        AlarmSound.silent => null,
+      };
+      final playSound = sound != AlarmSound.vibrateOnly && sound != AlarmSound.silent;
+      final id = _channelId(sound, vibrate, uriTag: _tagOf(uri));
+      final label = '${sound.label}${vibrate ? ' + لرزش' : ''}';
+      await a.createNotificationChannel(AndroidNotificationChannel(
+        id,
+        label,
+        description: sound.hint,
+        importance: Importance.max,
+        playSound: playSound,
+        // همیشه یک URI مشخص (نه null) تا هرگز بی‌صدا نشود
+        sound: playSound && uri != null ? UriAndroidNotificationSound(uri) : null,
+        enableVibration: vibrate && sound != AlarmSound.silent,
+        vibrationPattern: vibrate ? pattern : null,
+        audioAttributesUsage: AudioAttributesUsage.alarm,
+      ));
+    }
+
+    for (final sound in [
+      AlarmSound.appAlarm,
+      AlarmSound.systemAlarm,
+      AlarmSound.custom,
+      AlarmSound.vibrateOnly,
+    ]) {
+      await make(sound, false);
+      await make(sound, true);
+    }
+
     await a.createNotificationChannel(const AndroidNotificationChannel(
       _chQuiet,
       'یادآوری بی‌صدا',
@@ -209,11 +227,12 @@ class NotificationService {
     if (!isAlarm) {
       channelId = isExam ? _chExamQuiet : _chQuiet;
     } else {
-      channelId = switch (s.alarmSound) {
-        AlarmSound.vibrateOnly => _chVibrateOnly,
-        AlarmSound.systemAlarm => s.vibrate ? _chDefaultVibrate : _chDefaultSound,
-        _ => s.vibrate ? _chAlarmVibrate : _chAlarm,
-      };
+      // برای موسیقی خودم، هش URI را هم در شناسه می‌آوریم تا با عوض شدن
+      // فایل، کانال تازه ساخته شود.
+      final tag = s.alarmSound == AlarmSound.custom
+          ? _tagOf(s.customSoundUri)
+          : null;
+      channelId = _channelId(s.alarmSound, s.vibrate, uriTag: tag);
     }
     return NotificationDetails(
       android: AndroidNotificationDetails(
@@ -351,6 +370,10 @@ class NotificationService {
 
   Future<void> _reschedule() async {
     await init();
+    // کانال‌ها را دوباره بساز تا اگر کاربر موسیقی/صدا را عوض کرده،
+    // URI تازه اعمال شود (شناسهٔ کانال با تغییر صدا عوض می‌شود).
+    await SoundService.instance.refresh();
+    await _createChannels();
     await _plugin.cancelAll();
 
     final s = SettingsService.instance.settings;

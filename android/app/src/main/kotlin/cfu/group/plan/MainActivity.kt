@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.media.RingtoneManager
 import android.os.PowerManager
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
@@ -31,6 +32,33 @@ class MainActivity : FlutterActivity() {
                     "openAutoStartSettings" -> result.success(openAutoStartSettings())
                     "openAppSettings" -> result.success(openAppSettings())
                     "deviceInfo" -> result.success(deviceInfo())
+                    "appAlarmSoundUri" -> result.success(AlarmSounds.appAlarmUri(this))
+                    "systemSoundUri" -> result.success(AlarmSounds.systemSoundUri(this))
+                    "customSoundUri" -> {
+                        val raw = call.argument<String>("uri")
+                        result.success(AlarmSounds.customSoundUri(this, raw))
+                    }
+                    "pickCustomSound" -> {
+                        pendingSoundResult = result
+                        openRingtonePicker()
+                    }
+                    "persistedCustomSoundUri" -> result.success(AlarmSounds.persistedCustomUri(this))
+                    "soundDisplayName" -> {
+                        val raw = call.argument<String>("uri")
+                        result.success(AlarmSounds.displayName(this, raw))
+                    }
+                    "clearCustomSound" -> {
+                        AlarmSounds.clearPersisted(this)
+                        result.success(true)
+                    }
+                    "previewSound" -> {
+                        val raw = call.argument<String>("uri")
+                        result.success(previewSound(raw))
+                    }
+                    "stopPreview" -> {
+                        stopPreview()
+                        result.success(true)
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -172,6 +200,105 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             false
         }
+    }
+
+    // ── انتخابگر رسمی زنگ اندروید ──
+    // چرا این روش: URI فایل (file://) برای SystemUI قابل خواندن نیست و اعلان
+    // بی‌صدا می‌شود. انتخابگر زنگ یک URI پایدار content:// می‌دهد که همیشه
+    // خواندنی است و کاربر می‌تواند از موسیقی‌های خودش هم انتخاب کند.
+    private var pendingSoundResult: MethodChannel.Result? = null
+
+    private val ringtoneRequestCode = 4201
+
+    private fun openRingtonePicker() {
+        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, false)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+            // اگر قبلاً صدایی انتخاب شده بود، در لیست انتخاب‌شده باشد
+            val current = AlarmSounds.persistedCustomUri(this@MainActivity)
+            if (current != null) {
+                putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(current))
+            }
+        }
+        try {
+            startActivityForResult(intent, ringtoneRequestCode)
+        } catch (e: Exception) {
+            pendingSoundResult?.success(null)
+            pendingSoundResult = null
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == ringtoneRequestCode) {
+            var uri: String? = null
+            if (resultCode == RESULT_OK && data != null) {
+                // getParcelableExtra<T> فقط از API 33 هست؛ نسخهٔ قدیمی روی
+                // اندروید ۱۳ و پایین‌تر کرش می‌کند.
+                @Suppress("DEPRECATION")
+                val picked = if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    data.getParcelableExtra(
+                        RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java,
+                    )
+                } else {
+                    data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
+                }
+                if (picked != null) {
+                    uri = picked.toString()
+                    // دسترسی خواندن ماندگار (برای محتوای کاربر)
+                    try {
+                        contentResolver.takePersistableUriPermission(
+                            picked,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                        )
+                    } catch (e: Exception) {
+                        // بعضی URIها قابل persist نیستند ولی خواندنی‌اند
+                    }
+                    AlarmSounds.persistCustom(this, uri)
+                }
+            }
+            pendingSoundResult?.success(uri)
+            pendingSoundResult = null
+            return
+        }
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    // ── پخش نمونهٔ صدا برای انتخاب کاربر ──
+    private var previewRingtone: android.media.Ringtone? = null
+
+    /** یک بار پخش می‌کند تا کاربر صدا را بشنود. */
+    private fun previewSound(uriString: String?): Boolean {
+        stopPreview()
+        val uri = try {
+            Uri.parse(uriString ?: return false)
+        } catch (e: Exception) {
+            return false
+        }
+        return try {
+            val r = RingtoneManager.getRingtone(this, uri) ?: return false
+            r.play()
+            previewRingtone = r
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun stopPreview() {
+        try {
+            previewRingtone?.stop()
+        } catch (e: Exception) {
+            // بی‌خیال
+        }
+        previewRingtone = null
+    }
+
+    override fun onDestroy() {
+        stopPreview()
+        super.onDestroy()
     }
 
     /**

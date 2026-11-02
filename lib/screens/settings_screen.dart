@@ -8,10 +8,12 @@ import '../data/schedule_store.dart';
 import '../services/battery_service.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
+import '../services/sound_service.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../version.dart';
 import 'ai_assistant_screen.dart';
+import 'sound_sheet.dart';
 import 'editor/groups_screen.dart';
 
 /// صفحهٔ تنظیمات — سه بخش روشن:
@@ -242,17 +244,19 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     _toast(v ? 'کلاس‌های تک‌ساعته لغو شدند' : 'کلاس‌های تک‌ساعته برگزار می‌شوند');
   }
 
-  /// انتخاب نوع صدا
+  /// انتخاب نوع صدا (شیت اختصاصی با پیش‌نمایش و انتخاب فایل)
   Future<void> _pickSound(AppSettings s) async {
-    final picked = await _pickFromSheet<AlarmSound>(
-      title: 'صدای آلارم',
-      current: s.alarmSound,
-      values: AlarmSound.values,
-      label: (v) => v.label,
-      hint: (v) => v.hint,
-    );
-    if (picked == null || picked == s.alarmSound) return;
+    final picked = await showSoundSheet(context, current: s.alarmSound);
+    if (picked == null) return;
+    // اگر موسیقی خودش را انتخاب کرد ولی فایلی ندارد، اجازه بده انتخاب کند
+    if (picked == AlarmSound.custom && s.customSoundUri.isEmpty) {
+      _toast('اول «انتخاب فایل از گوشی» را بزن.');
+      return;
+    }
+    if (picked == s.alarmSound) return;
     await _save(s.copyWith(alarmSound: picked));
+    await SoundService.instance.refresh();
+    await _notif.reschedule();
     _toast('صدای آلارم: ${picked.label}');
   }
 
@@ -372,7 +376,9 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             _LinkTile(
               icon: Icons.music_note_rounded,
               title: 'صدای آلارم',
-              value: s.alarmSound.label,
+              value: s.alarmSound == AlarmSound.custom && s.customSoundName.isNotEmpty
+                  ? '${s.alarmSound.label} · ${s.customSoundName}'
+                  : s.alarmSound.label,
               onTap: () => _pickSound(s),
             ),
             SwitchListTile(
