@@ -20,9 +20,12 @@ void main() {
     });
 
     test('«بی‌صدا» و «فقط لرزش» صدا ندارند', () {
-      // این دو هیچ URI صوتی نمی‌گیرند
+      // این دو هیچ URI صوتی نمی‌گیرند — توضیحشان باید همین را بگوید
       expect(AlarmSound.silent.label, contains('بی‌صدا'));
-      expect(AlarmSound.vibrateOnly.hint, contains('لرزش'));
+      expect(AlarmSound.vibrateOnly.label, contains('لرزش'));
+      final hint = AlarmSound.vibrateOnly.hint;
+      expect(hint.contains('لرزش') || hint.contains('می‌لرزد'), isTrue,
+          reason: 'توضیح «فقط لرزش» باید به لرزش اشاره کند: $hint');
     });
 
     test('«زنگ گوشی» توضیح می‌دهد که صدای اعلان پیش‌فرض است', () {
