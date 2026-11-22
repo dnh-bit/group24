@@ -1,7 +1,9 @@
+import 'dart:async' show unawaited;
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -35,6 +37,34 @@ class NotificationService {
   /// اگر «۵ دقیقهٔ دیگر» قبل از آماده شدن سرویس زده شد.
   static String? pendingSnooze;
 
+  /// «۵ دقیقهٔ دیگر» روی دیسک — چون ضربه روی اعلان ممکن است در ایزولیتِ
+  /// پس‌زمینه هندل شود (وقتی اپ بسته است) و حافظهٔ آن ایزولیت با اپ اصلی
+  /// یکی نیست؛ بدون این، اسنوز وقتی اپ کیل شده باشد گم می‌شود.
+  static const _snoozeKey = 'pending_snooze_v1';
+
+  static Future<void> _persistSnooze(String payload) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString(_snoozeKey, payload);
+    } catch (_) {}
+  }
+
+  static Future<String?> _readSnooze() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      return sp.getString(_snoozeKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> _clearSnooze() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.remove(_snoozeKey);
+    } catch (_) {}
+  }
+
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   bool _ready = false;
   Future<void> _queue = Future.value();
@@ -47,6 +77,16 @@ class NotificationService {
   // هش URI عوض می‌شود تا کانال تازه با صدای جدید ساخته شود.
   static const _chQuiet = 'class_quiet_v3';
   static const _chExamQuiet = 'exam_quiet_v3';
+
+  /// شناسهٔ درس از payload اعلان («course:12»، «exam:7»).
+  ///
+  /// payloadهای بدون ساختار (تست، سفارشی سیستم، رشتهٔ خالی) → null؛
+  /// هیچ‌وقت نباید RangeError بدهد.
+  static int? coursePayloadId(String payload) {
+    final i = payload.indexOf(':');
+    if (i < 0) return null;
+    return int.tryParse(payload.substring(i + 1));
+  }
 
   /// شناسهٔ کانال برای یک ترکیب صدا + لرزش.
   ///
@@ -116,9 +156,11 @@ class NotificationService {
     _ready = true;
 
     // اگر «۵ دقیقهٔ دیگر» قبل از آماده شدن سرویس زده شده بود
-    final ps = pendingSnooze;
+    // (حتی در ایزولیت پس‌زمینه — از دیسک هم بخوان)
+    final ps = pendingSnooze ?? await _readSnooze();
     if (ps != null) {
       pendingSnooze = null;
+      await _clearSnooze();
       await snooze(ps, 5);
     }
   }
@@ -167,6 +209,7 @@ class NotificationService {
       AlarmSound.appAlarm,
       AlarmSound.custom,
       AlarmSound.vibrateOnly,
+      AlarmSound.silent, // «بی‌صدا» هم کانالش باید ساخته شود وگرنه اعلانش نمی‌آید
     ]) {
       await make(sound, false);
       await make(sound, true);
@@ -219,18 +262,17 @@ class NotificationService {
     return true;
   }
 
-  NotificationDetails _details({required bool isAlarm, required bool isExam}) {
+  Future<NotificationDetails> _details({required bool isAlarm, required bool isExam}) async {
     final s = SettingsService.instance.settings;
     final String channelId;
     if (!isAlarm) {
       channelId = isExam ? _chExamQuiet : _chQuiet;
     } else {
-      // برای موسیقی خودم، هش URI را هم در شناسه می‌آوریم تا با عوض شدن
-      // فایل، کانال تازه ساخته شود.
-      final tag = s.alarmSound == AlarmSound.custom
-          ? _tagOf(s.customSoundUri)
-          : null;
-      channelId = _channelId(s.alarmSound, s.vibrate, uriTag: tag);
+      // شناسهٔ کانال باید «دقیقاً» همان باشد که _createChannels ساخته:
+      // همان URI مؤثر (برای «موسیقی خودم» اگر فایل پاک شده باشد، همان زنگ
+      // برنامه) — وگرنه کانال پیدا نمی‌شود و آلارم بی‌صدا می‌ماند.
+      final uri = await SoundService.instance.uriFor(s.alarmSound);
+      channelId = _channelId(s.alarmSound, s.vibrate, uriTag: _tagOf(uri));
     }
     return NotificationDetails(
       android: AndroidNotificationDetails(
@@ -258,9 +300,15 @@ class NotificationService {
     if (actionId == 'snooze') {
       final f = onSnooze;
       if (f != null) {
+        // اپ زنده است و اسنوز همین حالا انجام می‌شود؛ روی دیسک ننویس،
+        // وگرنه اجرای بعدی اپ یک اسنوز کهنه و تکراری می‌سازد.
         f(p, 5);
+        unawaited(_clearSnooze());
       } else {
+        // ایزولیت پس‌زمینه (اپ بسته): حافظه با اپ اصلی یکی نیست، پس
+        // روی دیسک بنویس تا init() اجرای بعدی آن را بردارد.
         pendingSnooze = p;
+        unawaited(_persistSnooze(p));
       }
       return;
     }
@@ -411,7 +459,7 @@ class NotificationService {
           [fmtTime(se.start), if (se.room.isNotEmpty) se.room, if (c.prof.isNotEmpty) 'استاد ${c.prof}']
               .join(' · '),
           _nextWeekly(now, se.day, se.start, mins),
-          _details(isAlarm: isAlarm, isExam: false),
+          await _details(isAlarm: isAlarm, isExam: false),
           androidScheduleMode: mode,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
           payload: 'course:${c.id}',
@@ -436,7 +484,7 @@ class NotificationService {
             'فردا امتحان ${c.shortName} داری',
             '${e.weekdayName} ${e.jalaliText} · ساعت ${e.timeText}$where · موفق باشی ✦',
             night,
-            _details(isAlarm: false, isExam: true),
+            await _details(isAlarm: false, isExam: true),
             androidScheduleMode: mode,
             payload: 'exam:${c.id}',
           );
@@ -460,7 +508,7 @@ class NotificationService {
                 : '${fa(alarmMins)} دقیقه تا امتحان ${c.shortName}',
             'ساعت ${fmtTime(e.start)}$where · موفق باشی ✦',
             alarmAt,
-            _details(isAlarm: _alarmWanted(isExam: true, courseAlert: effectiveAlert(c)), isExam: true),
+            await _details(isAlarm: _alarmWanted(isExam: true, courseAlert: effectiveAlert(c)), isExam: true),
             androidScheduleMode: mode,
             payload: 'exam:${c.id}',
           );
@@ -475,7 +523,7 @@ class NotificationService {
     final now = tz.TZDateTime.now(tz.local);
     final at = now.add(Duration(minutes: minutes));
     final isExam = payload.startsWith('exam:');
-    final id = int.tryParse(payload.split(':').last) ?? 0;
+    final id = coursePayloadId(payload) ?? 0;
     final c = _findCourse(id);
 
     final String title;
@@ -497,7 +545,7 @@ class NotificationService {
       title,
       body,
       at,
-      _details(isAlarm: _alarmWanted(isExam: isExam), isExam: isExam),
+      await _details(isAlarm: _alarmWanted(isExam: isExam), isExam: isExam),
       androidScheduleMode: await canScheduleExact()
           ? AndroidScheduleMode.exactAllowWhileIdle
           : AndroidScheduleMode.inexactAllowWhileIdle,
@@ -536,7 +584,7 @@ class NotificationService {
       isAlarm
           ? 'این یک آلارم آزمایشیه — با دکمهٔ «خاموش» یا «۵ دقیقهٔ دیگر» ببندش ✦'
           : 'این یک اعلان آزمایشیه. یادآوری‌ها همین شکلی میان ✦',
-      _details(isAlarm: isAlarm, isExam: false),
+      await _details(isAlarm: isAlarm, isExam: false),
     );
   }
 

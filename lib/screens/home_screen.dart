@@ -65,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               } else {
                 store.selectGroup(g.id);
+                NotificationService.instance.reschedule();
                 toast(context, 'گروه فعال شد: ${g.name}');
               }
             },
@@ -101,9 +102,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              isEmptyMode
-                                  ? 'برنامهٔ هفتگی و امتحان‌ها · کاملاً آفلاین'
-                                  : 'دانشگاه فرهنگیان · نیم‌سال اول ۱۴۰۵–۱۴۰۶',
+                              !kEmptyDefault && !isEmptyMode
+                                  ? 'دانشگاه فرهنگیان · نیم‌سال اول ۱۴۰۵–۱۴۰۶'
+                                  : 'برنامهٔ هفتگی و امتحان‌ها · کاملاً آفلاین',
                               style: const TextStyle(
                                 color: AppColors.muted,
                                 fontWeight: FontWeight.w600,
@@ -165,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ],
-                  if (!isEmptyMode) ...[
+                  if (!kEmptyDefault && !isEmptyMode) ...[
                     const SizedBox(height: 18),
                     const Text(
                       'نیم‌سال اول ۱۴۰۵–۱۴۰۶',

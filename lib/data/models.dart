@@ -527,7 +527,11 @@ const List<String> kCourseKinds = ['تخصصی', 'عمومی', 'معارف', 'پ
 const List<String> kSessionTypes = ['نظری', 'عملی'];
 
 /// نام پیش‌فرض گروه اول (برنامهٔ گروه ۲۴).
-const String kDefaultGroupName = 'برنامه درسی گروه ۲۴';
+///
+/// در نسخهٔ خالی (عمومی) این نام باید «گروه ۱» باشد؛ چون هیچ برنامهٔ
+/// پیش‌فرضی وجود ندارد و نام نباید به دانشگاه خاصی اشاره کند.
+const bool _kEmptyDefault = bool.fromEnvironment('EMPTY_DEFAULT');
+String get kDefaultGroupName => _kEmptyDefault ? 'گروه ۱' : 'برنامه درسی گروه ۲۴';
 
 /// نام پیش‌فرض گروه دوم (برنامهٔ گروه ۲۵).
 const String kG25GroupName = 'برنامه درسی گروه ۲۵';

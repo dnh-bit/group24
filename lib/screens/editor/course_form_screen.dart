@@ -92,6 +92,7 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
       note: _note.text.trim(),
       muted: _alert == CourseAlert.off,
       alert: _alert,
+      alertExplicit: true,
       alarmMinutes: _alarmMinutes,
     );
   }
@@ -145,10 +146,6 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
   String? _validateExam() {
     if (!_hasExam) return null;
     if (_examEnd <= _examStart) return 'ساعت پایان امتحان باید بعد از شروعش باشه';
-    final other = _store.examsSameDay(_build());
-    if (other.isNotEmpty) {
-      return 'امتحان «${other.first.shortName}» هم همون روزه';
-    }
     return null;
   }
 
@@ -164,6 +161,14 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
       return;
     }
     final course = _build();
+    // دو امتحان در یک روز اشکالی نداره — فقط هشدار می‌دیم (ذخیره بلاک نمی‌شه)
+    if (_hasExam) {
+      final sameDay = _store.examsSameDay(course).where((c) => c.id != course.id).toList();
+      if (sameDay.isNotEmpty) {
+        final ok = await _askOk('امتحان «${sameDay.first.shortName}» هم همون روزه. بازم ذخیره کنم؟');
+        if (!ok) return;
+      }
+    }
     await _store.upsert(course);
     await NotificationService.instance.reschedule();
     if (!mounted) return;

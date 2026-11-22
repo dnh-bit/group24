@@ -425,7 +425,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                 preview: notifNext == null
                     ? null
                     : 'مثلاً برای «${notifNext.ref.course.shortName}» ساعت '
-                        '${fmtTime(notifNext.ref.session.start - m / 60)} خبرت می‌کنم.',
+                        '${fmtTime(wrapHour(notifNext.ref.session.start - m / 60))} خبرت می‌کنم.',
               ),
             const Divider(height: 1, indent: 56),
             SwitchListTile(
@@ -517,7 +517,9 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               onChanged: _toggleCancelOneHour,
               secondary: const Icon(Icons.timer_off_outlined, color: AppColors.saffron),
               title: const Text('لغو کلاس‌های تک‌ساعته', style: _tTile),
-              subtitle: const Text('کلاس‌های یک‌ساعته از جدول حذف شوند (ویژهٔ فرهنگیان)'),
+              subtitle: Text(kEmptyDefault
+                  ? 'کلاس‌های یک‌ساعته از جدول حذف شوند'
+                  : 'کلاس‌های یک‌ساعته از جدول حذف شوند (ویژهٔ فرهنگیان)'),
             ),
           ]),
 
@@ -631,10 +633,11 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               ),
             ),
             const Divider(height: 1, indent: 56),
-            const ListTile(
-              leading: Icon(Icons.person_outline_rounded, color: AppColors.saffron),
-              title: Text('سازنده', style: _tTile),
-              subtitle: Text('علیرضا عودی\nAlirezaoudi@cfu.ac.ir'),
+            ListTile(
+              leading: const Icon(Icons.person_outline_rounded, color: AppColors.saffron),
+              title: const Text('سازنده', style: _tTile),
+              // در نسخهٔ عمومی ایمیل دانشگاهی (cfu.ac.ir) نمایش داده نمی‌شود
+              subtitle: const Text(kEmptyDefault ? 'علیرضا عودی' : 'علیرضا عودی\nAlirezaoudi@cfu.ac.ir'),
             ),
             const Divider(height: 1, indent: 56),
             ListTile(

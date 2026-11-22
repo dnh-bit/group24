@@ -324,6 +324,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
   /// ویرایش درس‌ها: گروه باید فعال باشه چون ویرایشگر روی گروه فعال کار می‌کنه.
   Future<void> _editCourses(CourseGroup g) async {
     await _store.selectGroup(g.id);
+    await NotificationService.instance.reschedule();
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CoursesEditorScreen()),
@@ -332,6 +333,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
   Future<void> _backupGroup(CourseGroup g) async {
     await _store.selectGroup(g.id);
+    await NotificationService.instance.reschedule();
     final code = encodeBackupCode(_store.exportActiveGroupJson());
     await Clipboard.setData(ClipboardData(text: code));
     if (mounted) toast(context, 'کد کوتاه پشتیبان «${g.name}» کپی شد — در بازگردانی همون کد رو بچسبون ✦');

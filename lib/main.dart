@@ -42,7 +42,9 @@ void _routeNotificationTap(String payload) {
 
 /// مسیریابی payload اعلان → صفحهٔ برنامه با کارت همان درس.
 Future<void> _openNotificationCourse(String payload) async {
-  final id = int.tryParse(payload.split(':')[1]);
+  // payloadهای بدون ساختار «type:id» (مثلاً اعلان آزمایشی یا سفارشی سیستم)
+  // نباید اپ را بترکانند — فقط نادیده گرفته می‌شوند.
+  final id = NotificationService.coursePayloadId(payload);
   if (id == null) return;
 
   final nav = Group24App.navigatorKey.currentState;

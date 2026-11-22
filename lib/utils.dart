@@ -15,6 +15,19 @@ String fmtTime(double hour) {
   return fa('${pad2(totalMin ~/ 60)}:${pad2(totalMin % 60)}');
 }
 
+/// ساعت را به بازهٔ ۰–۲۴ می‌برد (برای پیش‌نمایش آلارمِ قبل از نیمه‌شب:
+/// مثلاً کلاس ۰۰:۳۰ با آلارم ۱۲۰ دقیقه → ۲۲:۳۰ٔ روز قبل).
+double wrapHour(double hour) {
+  var h = hour;
+  while (h < 0) {
+    h += 24;
+  }
+  while (h >= 24) {
+    h -= 24;
+  }
+  return h;
+}
+
 double hourFrom(int h, int m) => h + m / 60.0;
 
 const List<String> kDayNames = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];

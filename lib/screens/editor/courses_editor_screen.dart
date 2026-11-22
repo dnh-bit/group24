@@ -245,9 +245,12 @@ class _CoursesEditorScreenState extends State<CoursesEditorScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('همهٔ گروه‌ها برگردونده بشن؟'),
-        content: const Text(
-          'همهٔ گروه‌های درسی و تغییراتشون پاک می‌شن و فقط دو گروه پیش‌فرض '
-          '«برنامه درسی گروه ۲۴» و «برنامه درسی گروه ۲۵» با برنامهٔ اولیه‌شون می‌مونن.',
+        content: Text(
+          kEmptyDefault
+              ? 'همهٔ گروه‌های درسی و تغییراتشون برای همیشه پاک می‌شن و برنامه از اول خالی می‌شه. '
+                  'این کار برگشت‌پذیر نیست — قبلش پشتیبان بگیر.'
+              : 'همهٔ گروه‌های درسی و تغییراتشون پاک می‌شن و فقط دو گروه پیش‌فرض '
+                  '«برنامه درسی گروه ۲۴» و «برنامه درسی گروه ۲۵» با برنامهٔ اولیه‌شون می‌مونن.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('نه')),

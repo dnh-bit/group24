@@ -118,7 +118,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
         children: [
-          const _Poster(),
+          _Poster(eyebrow: kPosterEyebrow),
           _ActiveGroupBar(groupName: _store.activeGroup.name),
           if (next != null) _NextPill(next: next, onTap: () => _openCourse(next.ref.course)),
           const SizedBox(height: 14),
@@ -170,33 +170,37 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 // ───────────────────────── Poster ─────────────────────────
 
 class _Poster extends StatelessWidget {
-  const _Poster();
+  const _Poster({this.eyebrow});
+  final String? eyebrow;
 
   @override
   Widget build(BuildContext context) {
+    final eyebrow = this.eyebrow;
     return Container(
       padding: const EdgeInsets.only(bottom: 12),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.saffron, width: 5)),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(kEyebrow, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.olive, fontSize: 12.5)),
-                SizedBox(height: 4),
-                Text(
+                if (eyebrow != null) ...[
+                  Text(eyebrow, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.olive, fontSize: 12.5)),
+                  const SizedBox(height: 4),
+                ],
+                const Text(
                   'برنامهٔ هفتگی',
                   style: TextStyle(fontFamily: kTitleFont, fontSize: 58, height: 1.05, color: AppColors.saffron),
                 ),
               ],
             ),
           ),
-          SizedBox(width: 8),
-          SpinningStar(size: 70),
+          const SizedBox(width: 8),
+          const SpinningStar(size: 70),
         ],
       ),
     );
@@ -397,9 +401,9 @@ class _DayList extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.line, width: 2),
         ),
-        child: const Text(
-          'تعطیل · وقت استراحت و تمرین نمایش ✦',
-          style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w500),
+        child: Text(
+          kEmptyDefault ? 'تعطیل · کلاسی نیست ✦' : 'تعطیل · وقت استراحت و تمرین نمایش ✦',
+          style: const TextStyle(color: AppColors.muted, fontWeight: FontWeight.w500),
         ),
       );
     }
@@ -688,8 +692,8 @@ class _WeekGrid extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppColors.line, width: 2),
                       ),
-                      child: const Text('تعطیل · وقت استراحت و تمرین نمایش ✦',
-                          style: TextStyle(color: AppColors.muted, fontSize: 13)),
+                      child: Text(kEmptyDefault ? 'تعطیل · کلاسی نیست ✦' : 'تعطیل · وقت استراحت و تمرین نمایش ✦',
+                          style: const TextStyle(color: AppColors.muted, fontSize: 13)),
                     ),
                   ],
                 ),

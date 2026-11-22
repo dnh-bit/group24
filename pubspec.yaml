@@ -1,7 +1,7 @@
 name: course_plan
-description: "برنامه درسی · دانشگاه فرهنگیان"
+description: "برنامه درسی · برنامهٔ هفتگی و امتحان‌ها برای همهٔ دانشگاه‌ها"
 publish_to: 'none'
-version: 0.1.7+17
+version: 0.1.8+18
 
 environment:
   sdk: ">=3.5.0 <4.0.0"

@@ -11,7 +11,9 @@ import 'models.dart';
 
 /// نسخهٔ «خالی»: با --dart-define=EMPTY_DEFAULT=true ساخته می‌شه؛
 /// بدون برنامه‌های پیش‌فرض گروه ۲۴ و ۲۵ — برای استفادهٔ همهٔ دانشگاه‌ها.
-const bool kEmptyDefault = bool.fromEnvironment('EMPTY_DEFAULT');
+/// (تعریف اصلی در settings_service.dart؛ اینجا فقط re-export می‌شود تا
+/// دو تعریف مستقل با یک نام به‌وجود نیاید.)
+export '../services/settings_service.dart' show kEmptyDefault;
 
 /// منبع اصلی داده‌ها: گروه‌های درسی و درس‌هایشان روی گوشی ذخیره می‌شن و
 /// قابل ویرایش هستن.
@@ -317,13 +319,16 @@ class ScheduleStore extends ChangeNotifier {
   }
 
   /// درس‌های گروه فعال را به برنامهٔ اولیهٔ همان گروه برمی‌گردونه.
+  /// در نسخهٔ خالی (عمومی) هیچ برنامهٔ پیش‌فرضی وجود ندارد تا برگردد.
   Future<void> resetToDefault() async {
+    if (kEmptyDefault) return;
     final list = _activeGroupIdToDefaultCourses();
     if (list == null) return;
     await _setCourses(List.of(list));
   }
 
   List<Course>? _activeGroupIdToDefaultCourses() {
+    if (kEmptyDefault) return null;
     switch (_activeId) {
       case 'g1':
         return kDefaultCourses;
@@ -718,14 +723,16 @@ class ScheduleStore extends ChangeNotifier {
     final today = dayIndexOf(now);
     final h = hourOf(now);
     final cancelOneHour = SettingsService.instance.settings.cancelOneHourClasses;
-    for (var k = 0; k < 7; k++) {
+    for (var k = 0; k <= 7; k++) {
       final day = (today + k) % 7;
       // اگر لغو کلاس‌های تک‌ساعته فعال باشد، از «کلاس بعدی» حذف می‌شوند
       final list = sessionsOfGroup(group)
           .where((s) => s.session.day == day && !(cancelOneHour && s.session.isOneHour))
           .toList();
       list.sort((a, b) => a.session.start.compareTo(b.session.start));
-      final visible = list.where((s) => k > 0 || s.session.end > h).toList();
+      // فقط همان امروز (k=0) جلسه‌های گذشته را کنار می‌گذاریم؛ روزهای بعدی
+      // همهٔ کلاس‌هایشان «بعدی» حساب می‌شوند.
+      final visible = list.where((s) => k == 0 ? s.session.end > h : true).toList();
       if (visible.isNotEmpty) {
         final first = visible.first;
         return NextClass(first, k, k == 0 && first.session.start <= h);

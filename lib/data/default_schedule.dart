@@ -3,6 +3,11 @@ import 'models.dart';
 
 const String kEyebrow = 'دانشگاه فرهنگیان · رشتهٔ امور تربیتی · نیم‌سال اول ۱۴۰۵–۱۴۰۶';
 
+/// خط بالای پوسترِ صفحهٔ برنامه — در نسخهٔ خالی (عمومی) هیچ برند دانشگاهی
+/// نباید نشان داده شود، پس null می‌آید و پوستر بدون خط بالا رندر می‌شود.
+const bool _kEmptyDefault = bool.fromEnvironment('EMPTY_DEFAULT');
+String? get kPosterEyebrow => _kEmptyDefault ? null : kEyebrow;
+
 /// برنامهٔ اولیه (از فایل HTML). با «بازگردانی برنامهٔ پیش‌فرض» برمی‌گرده.
 const List<Course> kDefaultCourses = [
   Course(
