@@ -204,24 +204,25 @@ bool isCompactPlanText(String raw) {
       final jy = _asInt(field(1));
       final jm = _asInt(field(2));
       final jd = _asInt(field(3));
-      final s = _asHour(field(4));
-      final e = _asHour(field(5));
-      if (jy == null ||
-          jm == null ||
-          jm < 1 ||
-          jm > 12 ||
-          jd == null ||
-          jd < 1 ||
-          jd > 31 ||
-          s == null ||
-          e == null) {
-        throw FormatException('امتحان درس «${current.name}» نامعتبره (تاریخ/ساعت)');
+      // تاریخ امتحان خراب/ناقص: فقط همین خط امتحان رد می‌شود، نه کل برنامه —
+      // درس بدون امتحان وارد می‌شود (هم‌سبک بقیهٔ ایمپورت تحمل‌پذیر).
+      if (jy == null || jm == null || jm < 1 || jm > 12 || jd == null || jd < 1 || jd > 31) {
+        continue;
       }
+      // ساعت امتحان در «تاییدیهٔ انتخاب واحد» معمولاً نیست و فقط تاریخ هست
+      // (مثل خروجی واقعی جمنای: x|1405|10|21|||). خالی بودن ساعت نباید کل
+      // ایمپورت را رد کند — و نباید هم جایش ساعت ساختگی گذاشت: ساعتِ
+      // اعلام‌نشده null می‌ماند و در برنامه «ساعت اعلام نشده» دیده می‌شود.
+      final s = _asHour(field(4));
+      var e = _asHour(field(5));
+      // پایانِ ناسازگار (کوچک‌تر/مساوی شروع) را هم با عدد ساختگی اصلاح
+      // نمی‌کنیم؛ می‌اندازیمش و فقط شروع می‌ماند.
+      if (s != null && e != null && e <= s) e = null;
       current = current.copyWith(
         exam: Exam(
           date: JDate(jy, jm, jd),
           start: s,
-          end: e > s ? e : s + 2,
+          end: e,
           place: field(6),
         ),
       );

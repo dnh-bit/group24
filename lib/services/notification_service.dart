@@ -476,13 +476,14 @@ class NotificationService {
         final where = e.place.isEmpty ? '' : ' · ${e.place}';
         final alarmMins = s.examAlarmMinutes.clamp(0, 180).toInt();
 
-        // شب قبل، ساعت ۲۰:۰۰ (یادآوری ساده)
+        // شب قبل، ساعت ۲۰:۰۰ (یادآوری ساده) — به ساعت امتحان نیاز ندارد
         final night = tz.TZDateTime(tz.local, g.year, g.month, g.day - 1, 20);
         if (night.isAfter(now)) {
+          final timePart = e.hasTime ? ' · ساعت ${e.timeText}' : ' · ساعت اعلام نشده';
           await _plugin.zonedSchedule(
             _examId(ci, 0),
             'فردا امتحان ${c.shortName} داری',
-            '${e.weekdayName} ${e.jalaliText} · ساعت ${e.timeText}$where · موفق باشی ✦',
+            '${e.weekdayName} ${e.jalaliText}$timePart$where · موفق باشی ✦',
             night,
             await _details(isAlarm: false, isExam: true),
             androidScheduleMode: mode,
@@ -490,28 +491,32 @@ class NotificationService {
           );
         }
 
-        // آلارم نهایی N دقیقه قبل از امتحان
-        final startMin = (e.start * 60).round() - alarmMins;
-        var dayShift = 0;
-        var m = startMin;
-        while (m < 0) {
-          m += 24 * 60;
-          dayShift -= 1;
-        }
-        final alarmAt =
-            tz.TZDateTime(tz.local, g.year, g.month, g.day + dayShift, m ~/ 60, m % 60);
-        if (alarmAt.isAfter(now)) {
-          await _plugin.zonedSchedule(
-            _examId(ci, 1),
-            alarmMins == 0
-                ? 'الان امتحان ${c.shortName} شروع می‌شه'
-                : '${fa(alarmMins)} دقیقه تا امتحان ${c.shortName}',
-            'ساعت ${fmtTime(e.start)}$where · موفق باشی ✦',
-            alarmAt,
-            await _details(isAlarm: _alarmWanted(isExam: true, courseAlert: effectiveAlert(c)), isExam: true),
-            androidScheduleMode: mode,
-            payload: 'exam:${c.id}',
-          );
+        // آلارم نهایی N دقیقه قبل از امتحان — فقط وقتی ساعتش معلوم است؛
+        // برای امتحانِ بدون ساعت، آلارمِ ساختگی سرِ ساعتِ حدسی نمی‌سازیم.
+        final examStart = e.start;
+        if (examStart != null) {
+          final startMin = (examStart * 60).round() - alarmMins;
+          var dayShift = 0;
+          var m = startMin;
+          while (m < 0) {
+            m += 24 * 60;
+            dayShift -= 1;
+          }
+          final alarmAt =
+              tz.TZDateTime(tz.local, g.year, g.month, g.day + dayShift, m ~/ 60, m % 60);
+          if (alarmAt.isAfter(now)) {
+            await _plugin.zonedSchedule(
+              _examId(ci, 1),
+              alarmMins == 0
+                  ? 'الان امتحان ${c.shortName} شروع می‌شه'
+                  : '${fa(alarmMins)} دقیقه تا امتحان ${c.shortName}',
+              'ساعت ${fmtTime(examStart)}$where · موفق باشی ✦',
+              alarmAt,
+              await _details(isAlarm: _alarmWanted(isExam: true, courseAlert: effectiveAlert(c)), isExam: true),
+              androidScheduleMode: mode,
+              payload: 'exam:${c.id}',
+            );
+          }
         }
       }
     }
@@ -531,7 +536,7 @@ class NotificationService {
     if (isExam) {
       final e = c?.exam;
       title = '${fa(minutes)} دقیقهٔ دیگر امتحان ${c?.shortName ?? ''}'.trim();
-      body = e == null ? 'موفق باشی ✦' : 'ساعت ${fmtTime(e.start)} · موفق باشی ✦';
+      body = (e == null || e.start == null) ? 'موفق باشی ✦' : 'ساعت ${fmtTime(e.start!)} · موفق باشی ✦';
     } else {
       title = '${fa(minutes)} دقیقهٔ دیگر کلاس ${c?.shortName ?? ''}'.trim();
       body = 'یادت نره ✦';

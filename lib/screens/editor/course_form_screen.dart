@@ -35,6 +35,10 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
   late JDate _examDate = widget.course?.exam?.date ?? _defaultExamDate();
   late double _examStart = widget.course?.exam?.start ?? 8;
   late double _examEnd = widget.course?.exam?.end ?? 10;
+
+  /// ساعت امتحان معلوم است؟ امتحانِ واردشده از تاییدیهٔ انتخاب واحد معمولاً
+  /// فقط تاریخ دارد؛ در آن حالت ساعت «نامعلوم» می‌ماند و عددی جایش نمی‌نشیند.
+  late bool _examHasTime = widget.course?.exam == null ? true : widget.course!.exam!.start != null;
   late final _examPlace = TextEditingController(text: widget.course?.exam?.place ?? '');
   bool _dirty = false;
 
@@ -86,7 +90,11 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
       units: _units,
       colorValue: _color,
       exam: _hasExam
-          ? Exam(date: _examDate, start: _examStart, end: _examEnd, place: _examPlace.text.trim())
+          ? Exam(
+              date: _examDate,
+              start: _examHasTime ? _examStart : null,
+              end: _examHasTime ? _examEnd : null,
+              place: _examPlace.text.trim())
           : null,
       sessions: _sessions,
       note: _note.text.trim(),
@@ -145,6 +153,7 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
 
   String? _validateExam() {
     if (!_hasExam) return null;
+    if (!_examHasTime) return null;
     if (_examEnd <= _examStart) return 'ساعت پایان امتحان باید بعد از شروعش باشه';
     return null;
   }
@@ -453,17 +462,35 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    TimeField(label: 'شروع امتحان', value: _examStart, onChanged: (v) => setState(() {
-                          _examStart = v;
-                          _dirty = true;
-                        })),
-                    const SizedBox(width: 10),
-                    TimeField(label: 'پایان امتحان', value: _examEnd, onChanged: (v) => setState(() {
-                          _examEnd = v;
-                          _dirty = true;
-                        })),
+                    const Expanded(
+                      child: Text('ساعت امتحان اعلام شده',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                    Switch(
+                      value: _examHasTime,
+                      onChanged: (v) => setState(() {
+                        _examHasTime = v;
+                        _dirty = true;
+                      }),
+                    ),
                   ],
                 ),
+                if (_examHasTime) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      TimeField(label: 'شروع امتحان', value: _examStart, onChanged: (v) => setState(() {
+                            _examStart = v;
+                            _dirty = true;
+                          })),
+                      const SizedBox(width: 10),
+                      TimeField(label: 'پایان امتحان', value: _examEnd, onChanged: (v) => setState(() {
+                            _examEnd = v;
+                            _dirty = true;
+                          })),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _examPlace,

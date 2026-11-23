@@ -830,7 +830,7 @@ class _Ticket extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(course.shortName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                        Text('${e.weekdayName} · ${e.timeText}${e.place.isEmpty ? '' : ' · ${e.place}'}',
+                        Text('${e.weekdayName} · ${e.hasTime ? e.timeText : 'ساعت اعلام نشده'}${e.place.isEmpty ? '' : ' · ${e.place}'}',
                             style: const TextStyle(color: AppColors.muted, fontSize: 13)),
                         Text(leftText, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                       ],
@@ -925,7 +925,10 @@ class _CourseSheet extends StatelessWidget {
                         TextSpan(
                             text: '${c.exam!.weekdayName} ${c.exam!.jalaliText}',
                             style: const TextStyle(fontWeight: FontWeight.w800)),
-                        TextSpan(text: ' · ساعت ${c.exam!.timeText}'),
+                        if (c.exam!.hasTime)
+                          TextSpan(text: ' · ساعت ${c.exam!.timeText}')
+                        else
+                          const TextSpan(text: ' · ساعت اعلام نشده'),
                         if (c.exam!.place.isNotEmpty) TextSpan(text: ' · ${c.exam!.place}'),
                         if (c.exam!.daysLeft(now) > 0)
                           TextSpan(

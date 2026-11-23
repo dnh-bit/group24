@@ -228,17 +228,32 @@ class Session {
 
 class Exam {
   final JDate date;
-  final double start;
-  final double end;
+
+  /// ساعت شروع/پایان امتحان — اگر دانشگاه هنوز ساعت را اعلام نکرده باشد
+  /// null است. هیچ‌جا نباید ساعت ساختگی (مثلاً ۸ تا ۱۰) جایش گذاشته شود؛
+  /// «ساعت اعلام نشده» با «ساعت ۸» فرق دارد.
+  final double? start;
+  final double? end;
   final String place;
 
-  const Exam({required this.date, required this.start, required this.end, this.place = ''});
+  const Exam({required this.date, this.start, this.end, this.place = ''});
+
+  bool get hasTime => start != null;
 
   DateTime get gregorian => date.toDateTime();
   String get jalaliText => fa('${date.y}/${pad2(date.m)}/${pad2(date.d)}');
   String get dayText => fa(pad2(date.d));
   String get monthName => kJalaliMonths[date.m - 1];
-  String get timeText => '${fmtTime(start)} تا ${fmtTime(end)}';
+
+  /// «۸:۰۰ تا ۱۰:۰۰» — بدون ساعتِ اعلام‌شده رشتهٔ خالی برمی‌گردد تا
+  /// نمایش‌دهنده خودش بنویسد «ساعت اعلام نشده».
+  String get timeText {
+    final s = start;
+    if (s == null) return '';
+    final e = end;
+    return e == null ? fmtTime(s) : '${fmtTime(s)} تا ${fmtTime(e)}';
+  }
+
   String get weekdayName => kDayNames[date.weekdayIndex];
 
   /// چند روز مانده (بر اساس روز تقویمی)
@@ -254,8 +269,14 @@ class Exam {
         place: place ?? this.place,
       );
 
-  Map<String, dynamic> toJson() =>
-      {'jy': date.y, 'jm': date.m, 'jd': date.d, 's': start, 'e': end, 'place': place};
+  Map<String, dynamic> toJson() => {
+        'jy': date.y,
+        'jm': date.m,
+        'jd': date.d,
+        if (start != null) 's': start,
+        if (end != null) 'e': end,
+        'place': place,
+      };
 
   factory Exam.fromJson(Map<String, dynamic> j) {
     final date = _pick(j, ['date', 'تاریخ']);
@@ -265,13 +286,17 @@ class Exam {
     var jd = _int(_pick(dateMap, ['jd', 'd', 'day', 'روز']), 1);
     if (jm < 1 || jm > 12) jm = 1;
     if (jd < 1 || jd > 31) jd = 1;
-    final start = _dbl(_pick(j, ['s', 'start', 'شروع']), 8);
-    var end = _dbl(_pick(j, ['e', 'end', 'پایان']), start + 2);
-    if (end <= start) end = start + 2;
+    // ساعتِ نیامده در JSON یعنی «اعلام نشده» → null می‌ماند، نه پیش‌فرض ساختگی.
+    final rawS = _pick(j, ['s', 'start', 'شروع']);
+    final rawE = _pick(j, ['e', 'end', 'پایان']);
+    final double? start = rawS == null ? null : _dbl(rawS, 8).clamp(0.0, 24.0);
+    double? end = rawE == null ? null : _dbl(rawE, 10).clamp(0.0, 24.0);
+    // پایانِ ناسازگار را هم با عدد ساختگی «درست» نمی‌کنیم؛ می‌اندازیمش.
+    if (start != null && end != null && end <= start) end = null;
     return Exam(
       date: JDate(jy, jm, jd),
-      start: start.clamp(0.0, 24.0),
-      end: end.clamp(0.0, 24.0),
+      start: start,
+      end: end,
       place: _str(_pick(j, ['place', 'محل', 'room', 'location'])),
     );
   }
